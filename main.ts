@@ -96,7 +96,11 @@ export default class ObsidianLinkEmbedPlugin extends Plugin {
 				editorCheckCallback: (checking: boolean, editor: Editor) => {
 					if (!checking) {
 						navigator.clipboard.readText().then((url) => {
-							this.urlToEmbedWithParser(url, name, this.newLine(editor));
+							this.urlToEmbedWithParser(
+								url,
+								name,
+								this.newLine(editor),
+							);
 						});
 					}
 					return true;
@@ -155,7 +159,9 @@ export default class ObsidianLinkEmbedPlugin extends Plugin {
 			}
 			const url = selectedText;
 			this.parse(this.settings.parser, url, cb, () => {
-				this.parse(this.settings.backup, url, cb, this.errorNotice);
+				this.parse(this.settings.backup, url, cb, () => {
+					this.errorNotice();
+				});
 			});
 		} else {
 			new Notice('Select a link to convert to embed.');
@@ -180,7 +186,9 @@ export default class ObsidianLinkEmbedPlugin extends Plugin {
 				console.log('Link Embed: url to embed', selectedText);
 			}
 			const url = selectedText;
-			this.parse(parser, url, cb, this.errorNotice);
+			this.parse(parser, url, cb, () => {
+				this.errorNotice();
+			});
 		} else {
 			new Notice('Select a link to convert to embed.');
 		}
