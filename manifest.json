@@ -1,7 +1,7 @@
 {
 	"id": "obsidian-link-embed",
 	"name": "Link Embed",
-	"version": "1.1.0",
+	"version": "1.1.2",
 	"minAppVersion": "0.12.0",
 	"description": "This plugin allow you to convert URLs in your notes into embeded previews.",
 	"author": "SErAphLi",
