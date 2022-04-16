@@ -18,8 +18,8 @@ Here is the table comparing the supported parsers.
 
 | Parser                                    | Speed  | Stable | Desc Length | Limitation |
 | ----------------------------------------- | ------ | ------ | ----------- | ---------- |
-| [JSONLink(Default)](https://jsonlink.io/) | \*\*   | \*     | \*\*\*      | Unlimited  |
-| [MicroLink](https://microlink.io/)        | \*\*\* | \*\*\* | \*\*        | 50/day     |
+| [JSONLink](https://jsonlink.io/) | \*\*   | \*     | \*\*\*      | Unlimited  |
+| [MicroLink(Default)](https://microlink.io/)        | \*\*\* | \*\*\* | \*\*        | 50/day     |
 | [Iframely](https://iframely.com/)         | \*\*   | \*\*   | \*          | 1000/month |
 
 Example of different parsers results:
