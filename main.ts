@@ -13,12 +13,14 @@ import { TEMPLATE } from './constants';
 interface ObsidianLinkEmbedPluginSettings {
 	parser: string;
 	backup: string;
+	inPlace: boolean;
 	debug: boolean;
 }
 
 const DEFAULT_SETTINGS: ObsidianLinkEmbedPluginSettings = {
 	parser: 'microlink',
 	backup: 'jsonlink',
+	inPlace: false,
 	debug: false,
 };
 
@@ -29,56 +31,43 @@ export default class ObsidianLinkEmbedPlugin extends Plugin {
 		await this.loadSettings();
 
 		this.addCommand({
-			id: 'create-link-embed-new-line',
-			name: 'Create link embed (new line)',
+			id: 'use-selection',
+			name: 'Use selection',
 			editorCallback: (editor: Editor) => {
-				this.urlToEmbed(editor, this.newLine(editor));
+				this.urlToEmbed(
+					editor,
+					this.settings.inPlace
+						? this.inPlace(editor)
+						: this.newLine(editor),
+				);
 			},
 		});
 		this.addCommand({
-			id: 'create-link-embed-in-place',
-			name: 'Create link embed (in place)',
-			editorCallback: (editor: Editor) => {
-				this.urlToEmbed(editor, this.inPlace(editor));
-			},
-		});
-		this.addCommand({
-			id: 'create-link-embed-from-clipboard',
-			name: 'Create link embed (from clipboard)',
+			id: 'from-clipboard',
+			name: 'From clipboard',
 			editorCallback: async (editor: Editor) => {
 				const url = await navigator.clipboard.readText();
-				this.urlToEmbed(url, this.newLine(editor));
+				this.urlToEmbed(
+					url,
+					this.settings.inPlace
+						? this.inPlace(editor)
+						: this.newLine(editor),
+				);
 			},
 		});
 		Object.keys(parsers).forEach((name) => {
 			this.addCommand({
-				id: `create-link-embed-new-line-${name}`,
-				name: `Create link embed with ${name} (new line)`,
-				editorCallback: (editor: Editor) => {
-					this.urlToEmbedWithParser(
-						editor,
-						name,
-						this.newLine(editor),
-					);
-				},
-			});
-			this.addCommand({
-				id: `create-link-embed-in-place-${name}`,
-				name: `Create link embed with ${name} (in place)`,
-				editorCallback: (editor: Editor) => {
-					this.urlToEmbedWithParser(
-						editor,
-						name,
-						this.inPlace(editor),
-					);
-				},
-			});
-			this.addCommand({
-				id: `create-link-embed-from-clipboard-${name}`,
-				name: `Create link embed with ${name} (from clipboard)`,
+				id: `from-clipboard-${name}`,
+				name: `From clipboard with ${name}`,
 				editorCallback: async (editor: Editor) => {
 					const url = await navigator.clipboard.readText();
-					this.urlToEmbedWithParser(url, name, this.newLine(editor));
+					this.urlToEmbedWithParser(
+						url,
+						name,
+						this.settings.inPlace
+							? this.inPlace(editor)
+							: this.newLine(editor),
+					);
 				},
 			});
 		});
@@ -240,6 +229,17 @@ class SampleSettingTab extends PluginSettingTab {
 					.setValue(this.plugin.settings.backup)
 					.onChange((value) => {
 						this.plugin.settings.backup = value;
+						this.plugin.saveSettings();
+					});
+			});
+		new Setting(containerEl)
+			.setName('In Place')
+			.setDesc('Always replace selection with embed.')
+			.addToggle((value) => {
+				value
+					.setValue(this.plugin.settings.inPlace)
+					.onChange((value) => {
+						this.plugin.settings.inPlace = value;
 						this.plugin.saveSettings();
 					});
 			});
