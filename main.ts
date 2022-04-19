@@ -7,7 +7,6 @@ import {
 	Setting,
 } from 'obsidian';
 import Mustache from 'mustache';
-import _ from 'lodash';
 import { parseOptions, parsers } from './parser';
 import { TEMPLATE } from './constants';
 
@@ -61,7 +60,7 @@ export default class ObsidianLinkEmbedPlugin extends Plugin {
 				return true;
 			},
 		});
-		_.forEach(parsers, (parser, name) => {
+		Object.keys(parsers).forEach((name) => {
 			this.addCommand({
 				id: `create-link-embed-new-line-${name}`,
 				name: `Create link embed with ${name} (new line)`,
