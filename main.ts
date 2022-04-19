@@ -45,10 +45,9 @@ export default class ObsidianLinkEmbedPlugin extends Plugin {
 		this.addCommand({
 			id: 'create-link-embed-from-clipboard',
 			name: 'Create link embed (from clipboard)',
-			editorCallback: (editor: Editor) => {
-				navigator.clipboard.readText().then((url) => {
-					this.urlToEmbed(url, this.newLine(editor));
-				});
+			editorCallback: async (editor: Editor) => {
+				const url = await navigator.clipboard.readText();
+				this.urlToEmbed(url, this.newLine(editor));
 			},
 		});
 		Object.keys(parsers).forEach((name) => {
@@ -77,14 +76,9 @@ export default class ObsidianLinkEmbedPlugin extends Plugin {
 			this.addCommand({
 				id: `create-link-embed-from-clipboard-${name}`,
 				name: `Create link embed with ${name} (from clipboard)`,
-				editorCallback: (editor: Editor) => {
-					navigator.clipboard.readText().then((url) => {
-						this.urlToEmbedWithParser(
-							url,
-							name,
-							this.newLine(editor),
-						);
-					});
+				editorCallback: async (editor: Editor) => {
+					const url = await navigator.clipboard.readText();
+					this.urlToEmbedWithParser(url, name, this.newLine(editor));
 				},
 			});
 		});
