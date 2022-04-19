@@ -1,6 +1,6 @@
 {
 	"name": "obsidian-link-embed",
-	"version": "1.1.4",
+	"version": "1.1.5",
 	"description": "This plugin allow you to convert URLs in your notes into embeded previews.",
 	"main": "main.js",
 	"scripts": {
@@ -22,7 +22,6 @@
 		"@typescript-eslint/parser": "^5.2.0",
 		"builtin-modules": "^3.2.0",
 		"esbuild": "0.13.12",
-		"lodash": "^4.17.21",
 		"mustache": "^4.2.0",
 		"obsidian": "latest",
 		"tslib": "2.3.1",
