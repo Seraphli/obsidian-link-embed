@@ -31,78 +31,60 @@ export default class ObsidianLinkEmbedPlugin extends Plugin {
 		this.addCommand({
 			id: 'create-link-embed-new-line',
 			name: 'Create link embed (new line)',
-			editorCheckCallback: (checking: boolean, editor: Editor) => {
-				if (!checking) {
-					this.urlToEmbed(editor, this.newLine(editor));
-				}
-				return true;
+			editorCallback: (editor: Editor) => {
+				this.urlToEmbed(editor, this.newLine(editor));
 			},
 		});
 		this.addCommand({
 			id: 'create-link-embed-in-place',
 			name: 'Create link embed (in place)',
-			editorCheckCallback: (checking: boolean, editor: Editor) => {
-				if (!checking) {
-					this.urlToEmbed(editor, this.inPlace(editor));
-				}
-				return true;
+			editorCallback: (editor: Editor) => {
+				this.urlToEmbed(editor, this.inPlace(editor));
 			},
 		});
 		this.addCommand({
 			id: 'create-link-embed-from-clipboard',
 			name: 'Create link embed (from clipboard)',
-			editorCheckCallback: (checking: boolean, editor: Editor) => {
-				if (!checking) {
-					navigator.clipboard.readText().then((url) => {
-						this.urlToEmbed(url, this.newLine(editor));
-					});
-				}
-				return true;
+			editorCallback: (editor: Editor) => {
+				navigator.clipboard.readText().then((url) => {
+					this.urlToEmbed(url, this.newLine(editor));
+				});
 			},
 		});
 		Object.keys(parsers).forEach((name) => {
 			this.addCommand({
 				id: `create-link-embed-new-line-${name}`,
 				name: `Create link embed with ${name} (new line)`,
-				editorCheckCallback: (checking: boolean, editor: Editor) => {
-					if (!checking) {
-						this.urlToEmbedWithParser(
-							editor,
-							name,
-							this.newLine(editor),
-						);
-					}
-					return true;
+				editorCallback: (editor: Editor) => {
+					this.urlToEmbedWithParser(
+						editor,
+						name,
+						this.newLine(editor),
+					);
 				},
 			});
 			this.addCommand({
 				id: `create-link-embed-in-place-${name}`,
 				name: `Create link embed with ${name} (in place)`,
-				editorCheckCallback: (checking: boolean, editor: Editor) => {
-					if (!checking) {
-						this.urlToEmbedWithParser(
-							editor,
-							name,
-							this.inPlace(editor),
-						);
-					}
-					return true;
+				editorCallback: (editor: Editor) => {
+					this.urlToEmbedWithParser(
+						editor,
+						name,
+						this.inPlace(editor),
+					);
 				},
 			});
 			this.addCommand({
 				id: `create-link-embed-from-clipboard-${name}`,
 				name: `Create link embed with ${name} (from clipboard)`,
-				editorCheckCallback: (checking: boolean, editor: Editor) => {
-					if (!checking) {
-						navigator.clipboard.readText().then((url) => {
-							this.urlToEmbedWithParser(
-								url,
-								name,
-								this.newLine(editor),
-							);
-						});
-					}
-					return true;
+				editorCallback: (editor: Editor) => {
+					navigator.clipboard.readText().then((url) => {
+						this.urlToEmbedWithParser(
+							url,
+							name,
+							this.newLine(editor),
+						);
+					});
 				},
 			});
 		});
