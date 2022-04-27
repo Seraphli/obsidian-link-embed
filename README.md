@@ -5,10 +5,19 @@ This plugin allow you to convert URLs in your notes into embeded previews.
 This plugin is inspired by [Obsidian Rich Link](https://github.com/dhamaniasad/obsidian-rich-links), and provide more features than the original plugin.
 
 ### Usage
+Recommanded usage:
 
--   Select the link you want to convert in the note
--   Open the Command Palette
--   Select **Create link embed (in place)** or **Create link embed (new line)**
+- Copy the URL you want to embed
+- Open the command Palette
+- Select the command `Link Embed: From clipboard`
+
+Or
+
+- Select the link you want to convert in the note
+- Open the Command Palette
+- Select `Link Embed: Use selection`
+
+In case some parsers are not working, you can also use the `Link Embed: From clipboard with ...` to specify one parser.
 
 ### Settings
 
