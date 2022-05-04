@@ -4,6 +4,10 @@ This plugin allow you to convert URLs in your notes into embeded previews.
 
 This plugin is inspired by [Obsidian Rich Link](https://github.com/dhamaniasad/obsidian-rich-links), and provide more features than the original plugin.
 
+This is how it looks.
+
+![image](https://user-images.githubusercontent.com/1586755/166629910-8406af7d-6e10-4575-bd24-c8fffe277de4.png)
+
 ### Usage
 Recommanded usage:
 
@@ -18,6 +22,8 @@ Or
 - Select `Link Embed: Use selection`
 
 In case some parsers are not working, you can also use the `Link Embed: From clipboard with ...` to specify one parser.
+
+![image](https://user-images.githubusercontent.com/1586755/166629957-12f9b793-9a63-4385-aaaf-a3c81fdca30d.png)
 
 ### Settings
 
