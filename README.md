@@ -1,33 +1,39 @@
-## Obsidian Link Embed
+# Obsidian Link Embed
 
-This plugin allow you to convert URLs in your notes into embeded previews.
-
-This plugin is inspired by [Obsidian Rich Link](https://github.com/dhamaniasad/obsidian-rich-links), and provide more features than the original plugin.
+This plugin allows you to convert URLs in your notes into embedded previews.
 
 This is how it looks.
 
-![image](https://user-images.githubusercontent.com/1586755/166629910-8406af7d-6e10-4575-bd24-c8fffe277de4.png)
+![demo](docs/demo.gif)
 
-### Usage
-Recommanded usage:
+## Usage
 
-- Copy the URL you want to embed
-- Open the command Palette
-- Select the command `Link Embed: From clipboard`
+There are three ways to pass the URL to this plugin.
+
+1. Selecting the URL you want to parse
+
+If nothing is selected
+
+2. Put your cursor within the URL text that you want to parse
 
 Or
 
-- Select the link you want to convert in the note
-- Open the Command Palette
-- Select `Link Embed: Use selection`
+3. Copy the URL into the clipboard
 
-In case some parsers are not working, you can also use the `Link Embed: From clipboard with ...` to specify one parser.
+Then 
 
-![image](https://user-images.githubusercontent.com/1586755/166629957-12f9b793-9a63-4385-aaaf-a3c81fdca30d.png)
+- Open the command Palette
+- Select the command `Link Embed: Embed link`
+
+In case some parsers are not working, you can also use the `Link Embed: Embed link with ...` to specify one parser.
 
 ### Settings
 
 You can change the default parser in the plugin settings.
+
+And `In Place` means the selection in the editor will be removed.
+
+The embedded preview will always be inserted into the next line.
 
 Here is the table comparing the supported parsers.
 
@@ -37,7 +43,13 @@ Here is the table comparing the supported parsers.
 | [MicroLink(Default)](https://microlink.io/) | \*\*\* | \*\*\* | \*\*        | 50/day     |
 | [Iframely](https://iframely.com/)           | \*\*   | \*\*   | \*          | 1000/month |
 
-Example of different parsers results:
+
+## Thanks
+
+- [Obsidian Rich Link](https://github.com/dhamaniasad/obsidian-rich-links)
+- [Obsidian Auto Link Title](https://github.com/zolrath/obsidian-auto-link-title)
+
+## Example results from different parsers
 
 **Example 1**
 
