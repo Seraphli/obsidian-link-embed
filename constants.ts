@@ -1,20 +1,3 @@
-// export const TEMPLATE =
-// 	'<div class="rich-link-card-container"><a class="rich-link-card" href="{{{url}}}" target="_blank">\n' +
-// 	'	<div class="rich-link-image-container">\n' +
-// 	'		<div class="rich-link-image" style="background-image: url({{{image}}})">\n' +
-// 	'	</div>\n' +
-// 	'	</div>\n' +
-// 	'	<div class="rich-link-card-text">\n' +
-// 	'		<h1 class="rich-link-card-title">{{title}}</h1>\n' +
-// 	'		<p class="rich-link-card-description">\n' +
-// 	'		{{description}}\n' +
-// 	'		</p>\n' +
-// 	'		<p class="rich-link-href">\n' +
-// 	'		{{{url}}}\n' +
-// 	'		</p>\n' +
-// 	'	</div>\n' +
-// 	'</a></div>\n';
-
 export const TEMPLATE = `
 <div
   style="
@@ -62,3 +45,7 @@ export const TEMPLATE = `
   </div>
 </div>
 `;
+
+export const REGEX = {
+	URL: '(http|ftp|https):\\/\\/([\\w_-]+(?:(?:\\.[\\w_-]+)+))([\\w.,@?^=%&:\\/~+#-]*[\\w@?^=%&\\/~+#-])',
+};

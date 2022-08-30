@@ -1,35 +1,36 @@
 import { Editor, Notice, Plugin } from 'obsidian';
 import Mustache from 'mustache';
 import { parsers } from './parser';
-import { TEMPLATE } from './constants';
+import { TEMPLATE, REGEX } from './constants';
 import type { ObsidianLinkEmbedPluginSettings } from './settings';
 import { ObsidianLinkEmbedSettingTab, DEFAULT_SETTINGS } from './settings';
+import { ExEditor } from './exEditor';
 
 export default class ObsidianLinkEmbedPlugin extends Plugin {
 	settings: ObsidianLinkEmbedPluginSettings;
+
+	async getText(editor: Editor) {
+		let selectedText = ExEditor.getSelectedText(
+			editor,
+			this.settings.debug,
+		);
+		if (selectedText == '') {
+			selectedText = await navigator.clipboard.readText();
+		}
+		return selectedText;
+	}
 
 	async onload() {
 		await this.loadSettings();
 
 		this.addCommand({
-			id: 'use-selection',
-			name: 'Use selection',
-			editorCallback: (editor: Editor) => {
-				this.urlToEmbed(
-					editor,
-					this.settings.inPlace
-						? this.inPlace(editor)
-						: this.newLine(editor),
-				);
-			},
-		});
-		this.addCommand({
-			id: 'from-clipboard',
-			name: 'From clipboard',
+			id: 'embed-link',
+			name: 'Embed link',
 			editorCallback: async (editor: Editor) => {
-				const url = await navigator.clipboard.readText();
+				let selectedText = await this.getText(editor);
 				this.urlToEmbed(
-					url,
+					selectedText,
+					this.defaultParse(),
 					this.settings.inPlace
 						? this.inPlace(editor)
 						: this.newLine(editor),
@@ -38,13 +39,13 @@ export default class ObsidianLinkEmbedPlugin extends Plugin {
 		});
 		Object.keys(parsers).forEach((name) => {
 			this.addCommand({
-				id: `from-clipboard-${name}`,
-				name: `From clipboard with ${name}`,
+				id: `embed-link-${name}`,
+				name: `Embed link with ${name}`,
 				editorCallback: async (editor: Editor) => {
-					const url = await navigator.clipboard.readText();
-					this.urlToEmbedWithParser(
-						url,
-						name,
+					let selectedText = await this.getText(editor);
+					this.urlToEmbed(
+						selectedText,
+						this.oneParse(name),
 						this.settings.inPlace
 							? this.inPlace(editor)
 							: this.newLine(editor),
@@ -72,77 +73,66 @@ export default class ObsidianLinkEmbedPlugin extends Plugin {
 
 	newLine(editor: Editor) {
 		return (embed: string) => {
-			editor.replaceSelection(`${editor.getSelection()}${embed}`);
+			let cursor = editor.getCursor();
+			let lineText = editor.getLine(cursor.line);
+			editor.setCursor({
+				line: cursor.line,
+				ch: lineText.length,
+			});
+			editor.replaceSelection(embed);
 		};
 	}
 
 	inPlace(editor: Editor) {
 		return (embed: string) => {
-			editor.replaceSelection(embed);
+			editor.replaceSelection('');
+			this.newLine(editor)(embed);
 		};
 	}
 
 	isUrl(text: string): boolean {
-		const urlRegex = new RegExp(
-			'^(http:\\/\\/www\\.|https:\\/\\/www\\.|http:\\/\\/|https:\\/\\/)?[a-z0-9]+([\\-.]{1}[a-z0-9]+)*\\.[a-z]{2,5}(:[0-9]{1,5})?(\\/.*)?$',
-		);
+		const urlRegex = new RegExp(REGEX.URL, 'g');
 		return urlRegex.test(text);
 	}
 
-	urlToEmbed(editor: Editor | string, cb: (embed: string) => void): void {
-		let selectedText;
-		if (editor instanceof Editor) {
-			selectedText = editor.somethingSelected()
-				? editor.getSelection()
-				: '';
-		} else {
-			selectedText = editor;
-		}
-		if (selectedText && this.isUrl(selectedText)) {
-			if (this.settings.debug) {
-				console.log('Link Embed: url to embed', selectedText);
-			}
-			const url = selectedText;
-			this.parse(this.settings.parser, url, cb, () => {
-				this.parse(this.settings.backup, url, cb, () => {
+	defaultParse() {
+		return (url: string, callback: (embed: string) => void) => {
+			this.parseWith(this.settings.parser, url, callback, () => {
+				this.parseWith(this.settings.backup, url, callback, () => {
 					this.errorNotice();
 				});
 			});
-		} else {
-			new Notice('Select a link to convert to embed.');
-		}
+		};
 	}
 
-	urlToEmbedWithParser(
-		editor: Editor | string,
-		parser: string,
-		cb: (embed: string) => void,
-	): void {
-		let selectedText;
-		if (editor instanceof Editor) {
-			selectedText = editor.somethingSelected()
-				? editor.getSelection()
-				: '';
-		} else {
-			selectedText = editor;
-		}
-		if (selectedText && this.isUrl(selectedText)) {
-			if (this.settings.debug) {
-				console.log('Link Embed: url to embed', selectedText);
-			}
-			const url = selectedText;
-			this.parse(parser, url, cb, () => {
+	oneParse(parser: string) {
+		return (url: string, callback: (embed: string) => void) => {
+			this.parseWith(parser, url, callback, () => {
 				this.errorNotice();
 			});
+		};
+	}
+
+	urlToEmbed(
+		selectedText: string,
+		parse: (url: string, callback: (embed: string) => void) => void,
+		callback: (embed: string) => void,
+	): void {
+		if (this.settings.debug) {
+			console.log('Link Embed: url to embed', selectedText);
+		}
+		if (selectedText.length > 0 && this.isUrl(selectedText)) {
+			const url = selectedText;
+			parse(url, callback);
 		} else {
-			new Notice('Select a link to convert to embed.');
+			new Notice('Need a link to convert to embed.');
 		}
 	}
 
-	parse(
+	parseWith(
 		selectedParser: string,
 		url: string,
-		cb: (embed: string) => void,
+		callback: (embed: string) => void,
 		error?: (err: any) => void,
 	): void {
 		if (this.settings.debug) {
@@ -157,7 +147,7 @@ export default class ObsidianLinkEmbedPlugin extends Plugin {
 					console.log('Link Embed: meta data', data);
 				}
 				const embed = Mustache.render(TEMPLATE, data);
-				cb(embed);
+				callback(embed);
 			})
 			.catch((err) => {
 				error(err);
