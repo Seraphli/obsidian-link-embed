@@ -4,7 +4,7 @@ This plugin allows you to convert URLs in your notes into embedded previews.
 
 This is how it looks.
 
-![demo](docs/demo.gif)
+![demo](https://raw.githubusercontent.com/Seraphli/obsidian-link-embed/main/docs/demo.gif)
 
 ## Usage
 
