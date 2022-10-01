@@ -1,31 +1,32 @@
 import { Editor, Notice, Plugin, MarkdownView, EditorPosition } from 'obsidian';
 import Mustache from 'mustache';
 import { parsers } from './parser';
-import { TEMPLATE, REGEX } from './constants';
+import { TEMPLATE, REGEX, SPINNER } from './constants';
 import type { ObsidianLinkEmbedPluginSettings } from './settings';
 import { ObsidianLinkEmbedSettingTab, DEFAULT_SETTINGS } from './settings';
-import { ExEditor } from './exEditor';
+import { ExEditor, Selected } from './exEditor';
 import EmbedSuggest from './suggest';
 
 interface PasteInfo {
 	trigger: boolean;
 	text: string;
-	lastPasteTime: Date;
 }
 
 export default class ObsidianLinkEmbedPlugin extends Plugin {
 	settings: ObsidianLinkEmbedPluginSettings;
 	pasteInfo: PasteInfo;
 
-	async getText(editor: Editor) {
-		let selectedText = ExEditor.getSelectedText(
-			editor,
-			this.settings.debug,
-		);
-		if (selectedText == '') {
-			selectedText = await navigator.clipboard.readText();
+	async getText(editor: Editor): Promise<Selected> {
+		let selected = ExEditor.getSelectedText(editor, this.settings.debug);
+		let cursor = editor.getCursor();
+		if (!selected.can) {
+			selected.text = await navigator.clipboard.readText();
+			selected.boundary = {
+				start: cursor,
+				end: cursor,
+			};
 		}
-		return selectedText;
+		return selected;
 	}
 
 	async onload() {
@@ -34,7 +35,6 @@ export default class ObsidianLinkEmbedPlugin extends Plugin {
 		this.pasteInfo = {
 			trigger: false,
 			text: '',
-			lastPasteTime: new Date(),
 		};
 
 		this.registerEvent(
@@ -48,10 +48,9 @@ export default class ObsidianLinkEmbedPlugin extends Plugin {
 					this.pasteInfo = {
 						trigger: false,
 						text: '',
-						lastPasteTime: new Date(),
 					};
 					const text = evt.clipboardData.getData('text/plain');
-					if (this.isUrl(text)) {
+					if (ObsidianLinkEmbedPlugin.isUrl(text)) {
 						this.pasteInfo.trigger = true;
 						this.pasteInfo.text = text;
 					}
@@ -65,15 +64,14 @@ export default class ObsidianLinkEmbedPlugin extends Plugin {
 			id: 'embed-link',
 			name: 'Embed link',
 			editorCallback: async (editor: Editor) => {
-				let selectedText = await this.getText(editor);
-				let cursor = this.getCursor(editor);
-				this.embedUrl(
-					selectedText,
-					this.defaultParse(),
-					this.settings.inPlace
-						? this.inPlace(editor, cursor)
-						: this.newLine(editor, cursor),
-				);
+				let selected = await this.getText(editor);
+				if (!this.checkUrlValid(selected)) {
+					return;
+				}
+				await this.embedUrl(editor, selected, [
+					this.settings.primary,
+					this.settings.backup,
+				]);
 			},
 		});
 		Object.keys(parsers).forEach((name) => {
@@ -81,15 +79,11 @@ export default class ObsidianLinkEmbedPlugin extends Plugin {
 				id: `embed-link-${name}`,
 				name: `Embed link with ${name}`,
 				editorCallback: async (editor: Editor) => {
-					let selectedText = await this.getText(editor);
-					let cursor = this.getCursor(editor);
-					this.embedUrl(
-						selectedText,
-						this.oneParse(name),
-						this.settings.inPlace
-							? this.inPlace(editor, cursor)
-							: this.newLine(editor, cursor),
-					);
+					let selected = await this.getText(editor);
+					if (!this.checkUrlValid(selected)) {
+						return;
+					}
+					await this.embedUrl(editor, selected, [name]);
 				},
 			});
 		});
@@ -111,91 +105,80 @@ export default class ObsidianLinkEmbedPlugin extends Plugin {
 		await this.saveData(this.settings);
 	}
 
-	getCursor(editor: Editor) {
-		let cursor = editor.getCursor();
-		let lineText = editor.getLine(cursor.line);
-		return {
-			line: cursor.line,
-			ch: lineText.length,
-		};
-	}
-
-	newLine(editor: Editor, cursor: EditorPosition) {
-		return (embed: string) => {
-			editor.setCursor(cursor);
-			editor.replaceSelection(embed);
-		};
-	}
-
-	inPlace(editor: Editor, cursor: EditorPosition) {
-		return (embed: string) => {
-			editor.replaceSelection('');
-			this.newLine(editor, cursor)(embed);
-		};
-	}
-
-	isUrl(text: string): boolean {
-		const urlRegex = new RegExp(REGEX.URL, 'g');
-		return urlRegex.test(text);
-	}
-
-	defaultParse() {
-		return (url: string, callback: (embed: string) => void) => {
-			this.parseWith(this.settings.parser, url, callback, () => {
-				this.parseWith(this.settings.backup, url, callback, () => {
-					this.errorNotice();
-				});
-			});
-		};
-	}
-
-	oneParse(parser: string) {
-		return (url: string, callback: (embed: string) => void) => {
-			this.parseWith(parser, url, callback, () => {
-				this.errorNotice();
-			});
-		};
-	}
-
-	embedUrl(
-		selectedText: string,
-		parse: (url: string, callback: (embed: string) => void) => void,
-		callback: (embed: string) => void,
-	): void {
-		if (this.settings.debug) {
-			console.log('Link Embed: url to embed', selectedText);
-		}
-		if (selectedText.length > 0 && this.isUrl(selectedText)) {
-			const url = selectedText;
-			parse(url, callback);
-		} else {
+	checkUrlValid(selected: Selected): boolean {
+		if (
+			!(
+				selected.text.length > 0 &&
+				ObsidianLinkEmbedPlugin.isUrl(selected.text)
+			)
+		) {
 			new Notice('Need a link to convert to embed.');
+			return false;
 		}
+		return true;
 	}
 
-	parseWith(
-		selectedParser: string,
-		url: string,
-		callback: (embed: string) => void,
-		error?: (err: any) => void,
-	): void {
-		if (this.settings.debug) {
-			console.log('Link Embed: parser', selectedParser);
+	async embedUrl(
+		editor: Editor,
+		selected: Selected,
+		selectedParsers: string[],
+		inPlace: boolean = this.settings.inPlace,
+	) {
+		let url = selected.text;
+		// replace selection if in place
+		if (selected.can && inPlace) {
+			editor.replaceRange(
+				'',
+				selected.boundary.start,
+				selected.boundary.end,
+			);
 		}
-		const parser = parsers[selectedParser];
-		parser.debug = this.settings.debug;
-		parser
-			.parse(url)
-			.then((data) => {
+		// put a dummy preview here first
+		const cursor = editor.getCursor();
+		const lineText = editor.getLine(cursor.line);
+		let template = TEMPLATE;
+		if (lineText.length > 0) {
+			template = '\n' + template;
+		}
+		editor.setCursor({ line: cursor.line, ch: lineText.length });
+		const startCursor = editor.getCursor();
+		const embed = Mustache.render(template, {
+			title: 'Fetching',
+			image: SPINNER,
+			description: `Fetching ${url}`,
+			url: url,
+		});
+		editor.replaceSelection(embed);
+		const endCursor = editor.getCursor();
+		// if we can fetch result, we can replace the embed with true content
+		let idx = 0;
+		while (idx < selectedParsers.length) {
+			const selectedParser = selectedParsers[idx];
+			if (this.settings.debug) {
+				console.log('Link Embed: parser', selectedParser);
+			}
+			const parser = parsers[selectedParser];
+			parser.debug = this.settings.debug;
+			try {
+				const data = await parser.parse(url);
 				if (this.settings.debug) {
 					console.log('Link Embed: meta data', data);
 				}
-				const embed = Mustache.render(TEMPLATE, data);
-				callback(embed);
-			})
-			.catch((err) => {
-				error(err);
-			});
+				const embed = Mustache.render(template, data);
+				editor.replaceRange(embed, startCursor, endCursor);
+				break;
+			} catch (error) {
+				idx += 1;
+				if (idx === selectedParsers.length) {
+					this.errorNotice();
+				}
+			}
+		}
+	}
+
+	public static isUrl(text: string): boolean {
+		const urlRegex = new RegExp(REGEX.URL, 'g');
+		return urlRegex.test(text);
 	}
 
 	errorNotice() {

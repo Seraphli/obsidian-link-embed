@@ -8,7 +8,9 @@ This is how it looks.
 
 ## Usage
 
-There are three ways to pass the URL to this plugin.
+The easiest way to use is by pasting your link and then creating an embed preview.
+
+Additionally, there are three ways to pass the URL to this plugin.
 
 1. Selecting the URL you want to parse
 

@@ -4,7 +4,7 @@ import { parseOptions } from './parser';
 
 export interface ObsidianLinkEmbedPluginSettings {
 	popup: boolean;
-	parser: string;
+	primary: string;
 	backup: string;
 	inPlace: boolean;
 	debug: boolean;
@@ -12,7 +12,7 @@ export interface ObsidianLinkEmbedPluginSettings {
 
 export const DEFAULT_SETTINGS: ObsidianLinkEmbedPluginSettings = {
 	popup: true,
-	parser: 'microlink',
+	primary: 'microlink',
 	backup: 'jsonlink',
 	inPlace: false,
 	debug: false,
@@ -48,9 +48,9 @@ export class ObsidianLinkEmbedSettingTab extends PluginSettingTab {
 			.addDropdown((value) => {
 				value
 					.addOptions(parseOptions)
-					.setValue(this.plugin.settings.parser)
+					.setValue(this.plugin.settings.primary)
 					.onChange((value) => {
-						this.plugin.settings.parser = value;
+						this.plugin.settings.primary = value;
 						this.plugin.saveSettings();
 					});
 			});

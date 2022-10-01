@@ -1,7 +1,7 @@
 import { Notice } from 'obsidian';
 import Mustache from 'mustache';
 
-export class Parser {
+export abstract class Parser {
 	api: string;
 	debug: boolean;
 	async parseUrl(url: string): Promise<any> {
@@ -25,9 +25,11 @@ export class Parser {
 		}
 		return { ...this.process(rawData), url };
 	}
-	process(data: any): { title: string; image: string; description: string } {
-		return { title: '', image: '', description: '' };
-	}
+	abstract process(data: any): {
+		title: string;
+		image: string;
+		description: string;
+	};
 }
 
 class JSONLinkParser extends Parser {

@@ -1,23 +1,48 @@
 import { Editor, EditorPosition } from 'obsidian';
 import { REGEX } from './constants';
 
-interface WordBoundaries {
+interface WordBoundary {
 	start: { line: number; ch: number };
 	end: { line: number; ch: number };
 }
 
+export interface Selected {
+	can: boolean;
+	text: string;
+	boundary: WordBoundary;
+}
+
 export class ExEditor {
-	public static getSelectedText(editor: Editor, debug: boolean): string {
+	public static getSelectedText(editor: Editor, debug: boolean): Selected {
 		if (debug) {
 			console.log(
 				`Link Embed: editor.somethingSelected() ${editor.somethingSelected()}`,
 			);
 		}
+		let cursor = editor.getCursor();
+		let wordBoundary: WordBoundary = {
+			start: cursor,
+			end: cursor,
+		};
 		if (!editor.somethingSelected()) {
-			let wordBoundaries = this.getWordBoundaries(editor, debug);
-			editor.setSelection(wordBoundaries.start, wordBoundaries.end);
+			wordBoundary = this.getWordBoundaries(editor, debug);
+			editor.setSelection(wordBoundary.start, wordBoundary.end);
 		}
-		return editor.getSelection();
+		if (editor.somethingSelected()) {
+			return {
+				can: true,
+				text: editor.getSelection(),
+				boundary: {
+					start: editor.getCursor('from'),
+					end: editor.getCursor('to'),
+				},
+			};
+		}
+		return {
+			can: false,
+			text: editor.getSelection(),
+			boundary: wordBoundary,
+		};
 	}
 
 	private static cursorWithinBoundaries(
@@ -38,7 +63,7 @@ export class ExEditor {
 	private static getWordBoundaries(
 		editor: Editor,
 		debug: boolean,
-	): WordBoundaries {
+	): WordBoundary {
 		let cursor = editor.getCursor();
 		let lineText = editor.getLine(cursor.line);
 

@@ -40,10 +40,22 @@ export default class EmbedSuggest extends EditorSuggest<IDateCompletion> {
 		event: KeyboardEvent | MouseEvent,
 	): void {
 		if (suggestion.choice == 'Create Embed') {
+			const cursor = this.editor.getCursor();
 			this.plugin.embedUrl(
-				this.plugin.pasteInfo.text,
-				this.plugin.defaultParse(),
-				this.plugin.inPlace(this.editor, this.cursor),
+				this.editor,
+				{
+					can: true,
+					text: this.plugin.pasteInfo.text,
+					boundary: {
+						start: {
+							line: cursor.line,
+							ch: cursor.ch - this.plugin.pasteInfo.text.length,
+						},
+						end: cursor,
+					},
+				},
+				[this.plugin.settings.primary, this.plugin.settings.backup],
+				true,
 			);
 		}
 		this.close();
@@ -64,7 +76,7 @@ export default class EmbedSuggest extends EditorSuggest<IDateCompletion> {
 		return {
 			start: cursor,
 			end: cursor,
-			query: '',
+			query: this.plugin.pasteInfo.text,
 		};
 	}
 }
