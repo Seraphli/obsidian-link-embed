@@ -1,13 +1,21 @@
-import { Editor, Notice, Plugin } from 'obsidian';
+import { Editor, Notice, Plugin, MarkdownView, EditorPosition } from 'obsidian';
 import Mustache from 'mustache';
 import { parsers } from './parser';
 import { TEMPLATE, REGEX } from './constants';
 import type { ObsidianLinkEmbedPluginSettings } from './settings';
 import { ObsidianLinkEmbedSettingTab, DEFAULT_SETTINGS } from './settings';
 import { ExEditor } from './exEditor';
+import EmbedSuggest from './suggest';
+
+interface PasteInfo {
+	trigger: boolean;
+	text: string;
+	lastPasteTime: Date;
+}
 
 export default class ObsidianLinkEmbedPlugin extends Plugin {
 	settings: ObsidianLinkEmbedPluginSettings;
+	pasteInfo: PasteInfo;
 
 	async getText(editor: Editor) {
 		let selectedText = ExEditor.getSelectedText(
@@ -23,17 +31,48 @@ export default class ObsidianLinkEmbedPlugin extends Plugin {
 	async onload() {
 		await this.loadSettings();
 
+		this.pasteInfo = {
+			trigger: false,
+			text: '',
+			lastPasteTime: new Date(),
+		};
+
+		this.registerEvent(
+			this.app.workspace.on(
+				'editor-paste',
+				(
+					evt: ClipboardEvent,
+					editor: Editor,
+					markdownView: MarkdownView,
+				) => {
+					this.pasteInfo = {
+						trigger: false,
+						text: '',
+						lastPasteTime: new Date(),
+					};
+					const text = evt.clipboardData.getData('text/plain');
+					if (this.isUrl(text)) {
+						this.pasteInfo.trigger = true;
+						this.pasteInfo.text = text;
+					}
+				},
+			),
+		);
+
+		this.registerEditorSuggest(new EmbedSuggest(this.app, this));
+
 		this.addCommand({
 			id: 'embed-link',
 			name: 'Embed link',
 			editorCallback: async (editor: Editor) => {
 				let selectedText = await this.getText(editor);
-				this.urlToEmbed(
+				let cursor = this.getCursor(editor);
+				this.embedUrl(
 					selectedText,
 					this.defaultParse(),
 					this.settings.inPlace
-						? this.inPlace(editor)
-						: this.newLine(editor),
+						? this.inPlace(editor, cursor)
+						: this.newLine(editor, cursor),
 				);
 			},
 		});
@@ -43,12 +82,13 @@ export default class ObsidianLinkEmbedPlugin extends Plugin {
 				name: `Embed link with ${name}`,
 				editorCallback: async (editor: Editor) => {
 					let selectedText = await this.getText(editor);
-					this.urlToEmbed(
+					let cursor = this.getCursor(editor);
+					this.embedUrl(
 						selectedText,
 						this.oneParse(name),
 						this.settings.inPlace
-							? this.inPlace(editor)
-							: this.newLine(editor),
+							? this.inPlace(editor, cursor)
+							: this.newLine(editor, cursor),
 					);
 				},
 			});
@@ -71,22 +111,26 @@ export default class ObsidianLinkEmbedPlugin extends Plugin {
 		await this.saveData(this.settings);
 	}
 
-	newLine(editor: Editor) {
+	getCursor(editor: Editor) {
+		let cursor = editor.getCursor();
+		let lineText = editor.getLine(cursor.line);
+		return {
+			line: cursor.line,
+			ch: lineText.length,
+		};
+	}
+
+	newLine(editor: Editor, cursor: EditorPosition) {
 		return (embed: string) => {
-			let cursor = editor.getCursor();
-			let lineText = editor.getLine(cursor.line);
-			editor.setCursor({
-				line: cursor.line,
-				ch: lineText.length,
-			});
+			editor.setCursor(cursor);
 			editor.replaceSelection(embed);
 		};
 	}
 
-	inPlace(editor: Editor) {
+	inPlace(editor: Editor, cursor: EditorPosition) {
 		return (embed: string) => {
 			editor.replaceSelection('');
-			this.newLine(editor)(embed);
+			this.newLine(editor, cursor)(embed);
 		};
 	}
 
@@ -113,7 +157,7 @@ export default class ObsidianLinkEmbedPlugin extends Plugin {
 		};
 	}
 
-	urlToEmbed(
+	embedUrl(
 		selectedText: string,
 		parse: (url: string, callback: (embed: string) => void) => void,
 		callback: (embed: string) => void,

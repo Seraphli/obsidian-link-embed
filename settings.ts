@@ -3,6 +3,7 @@ import ObsidianLinkEmbedPlugin from 'main';
 import { parseOptions } from './parser';
 
 export interface ObsidianLinkEmbedPluginSettings {
+	popup: boolean;
 	parser: string;
 	backup: string;
 	inPlace: boolean;
@@ -10,6 +11,7 @@ export interface ObsidianLinkEmbedPluginSettings {
 }
 
 export const DEFAULT_SETTINGS: ObsidianLinkEmbedPluginSettings = {
+	popup: true,
 	parser: 'microlink',
 	backup: 'jsonlink',
 	inPlace: false,
@@ -31,6 +33,15 @@ export class ObsidianLinkEmbedSettingTab extends PluginSettingTab {
 
 		containerEl.createEl('h2', { text: 'Link Embed' });
 
+		new Setting(containerEl)
+			.setName('Popup Menu')
+			.setDesc('Auto popup embed menu after paste url.')
+			.addToggle((value) => {
+				value.setValue(this.plugin.settings.popup).onChange((value) => {
+					this.plugin.settings.popup = value;
+					this.plugin.saveSettings();
+				});
+			});
 		new Setting(containerEl)
 			.setName('Primary Parser')
 			.setDesc('Select a primary parser to use for link embeds.')
