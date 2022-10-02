@@ -22,7 +22,7 @@ Or
 
 3. Copy the URL into the clipboard
 
-Then 
+Then
 
 - Open the command Palette
 - Select the command `Link Embed: Embed link`
@@ -30,6 +30,8 @@ Then
 In case some parsers are not working, you can also use the `Link Embed: Embed link with ...` to specify one parser.
 
 ### Settings
+
+If you enable `Auto Embed` in the setting, the plugin will automatically replace the link with an embed preview when you paste the link into an empty line. Although this option is quite convenient, I set the default setting to false in case someone doesn't know what happened.
 
 You can change the default parser in the plugin settings.
 
@@ -44,7 +46,6 @@ Here is the table comparing the supported parsers.
 | [JSONLink](https://jsonlink.io/)            | \*\*   | \*     | \*\*\*      | Unlimited  |
 | [MicroLink(Default)](https://microlink.io/) | \*\*\* | \*\*\* | \*\*        | 50/day     |
 | [Iframely](https://iframely.com/)           | \*\*   | \*\*   | \*          | 1000/month |
-
 
 ## Thanks
 

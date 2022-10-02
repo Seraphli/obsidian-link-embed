@@ -4,6 +4,8 @@ import { parseOptions } from './parser';
 
 export interface ObsidianLinkEmbedPluginSettings {
 	popup: boolean;
+	rmDismiss: boolean;
+	autoEmbedWhenEmpty: boolean;
 	primary: string;
 	backup: string;
 	inPlace: boolean;
@@ -12,6 +14,8 @@ export interface ObsidianLinkEmbedPluginSettings {
 
 export const DEFAULT_SETTINGS: ObsidianLinkEmbedPluginSettings = {
 	popup: true,
+	rmDismiss: false,
+	autoEmbedWhenEmpty: false,
 	primary: 'microlink',
 	backup: 'jsonlink',
 	inPlace: false,
@@ -35,12 +39,36 @@ export class ObsidianLinkEmbedSettingTab extends PluginSettingTab {
 
 		new Setting(containerEl)
 			.setName('Popup Menu')
-			.setDesc('Auto popup embed menu after paste url.')
+			.setDesc('Auto popup embed menu after pasting url.')
 			.addToggle((value) => {
 				value.setValue(this.plugin.settings.popup).onChange((value) => {
 					this.plugin.settings.popup = value;
 					this.plugin.saveSettings();
 				});
+			});
+		new Setting(containerEl)
+			.setName('Remvoe dismiss')
+			.setDesc(
+				'Remove dismiss from popup menu. You can always use ESC to dismiss the popup menu.',
+			)
+			.addToggle((value) => {
+				value
+					.setValue(this.plugin.settings.rmDismiss)
+					.onChange((value) => {
+						this.plugin.settings.rmDismiss = value;
+						this.plugin.saveSettings();
+					});
+			});
+		new Setting(containerEl)
+			.setName('Auto embed')
+			.setDesc('Auto embed link when pasting a link into an empty line.')
+			.addToggle((value) => {
+				value
+					.setValue(this.plugin.settings.autoEmbedWhenEmpty)
+					.onChange((value) => {
+						this.plugin.settings.autoEmbedWhenEmpty = value;
+						this.plugin.saveSettings();
+					});
 			});
 		new Setting(containerEl)
 			.setName('Primary Parser')

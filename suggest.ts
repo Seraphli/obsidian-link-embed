@@ -28,6 +28,9 @@ export default class EmbedSuggest extends EditorSuggest<IDateCompletion> {
 
 	getSuggestions(context: EditorSuggestContext): IDateCompletion[] {
 		// catch-all if there are no matches
+		if (this.plugin.settings.rmDismiss) {
+			return [{ choice: 'Create Embed' }];
+		}
 		return [{ choice: 'Dismiss' }, { choice: 'Create Embed' }];
 	}
 
@@ -66,13 +69,39 @@ export default class EmbedSuggest extends EditorSuggest<IDateCompletion> {
 		editor: Editor,
 		file: TFile,
 	): EditorSuggestTriggerInfo {
-		if (!this.plugin.settings.popup || !this.plugin.pasteInfo.trigger) {
+		if (!this.plugin.pasteInfo.trigger) {
 			return null;
 		}
 		this.plugin.pasteInfo.trigger = false;
 		this.editor = editor;
 		this.cursor = cursor;
-
+		if (this.plugin.settings.autoEmbedWhenEmpty) {
+			const cursor = this.editor.getCursor();
+			if (cursor.ch - this.plugin.pasteInfo.text.length == 0) {
+				this.plugin.embedUrl(
+					this.editor,
+					{
+						can: true,
+						text: this.plugin.pasteInfo.text,
+						boundary: {
+							start: {
+								line: cursor.line,
+								ch:
+									cursor.ch -
+									this.plugin.pasteInfo.text.length,
+							},
+							end: cursor,
+						},
+					},
+					[this.plugin.settings.primary, this.plugin.settings.backup],
+					true,
+				);
+				return null;
+			}
+		}
+		if (!this.plugin.settings.popup) {
+			return null;
+		}
 		return {
 			start: cursor,
 			end: cursor,
