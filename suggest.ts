@@ -28,7 +28,7 @@ export default class EmbedSuggest extends EditorSuggest<IDateCompletion> {
 
 	getSuggestions(context: EditorSuggestContext): IDateCompletion[] {
 		// catch-all if there are no matches
-		return [{ choice: 'Dismiss' }, { choice: 'Create Embed' }];
+		return [{ choice: 'Create Embed' }, { choice: 'Dismiss' }];
 	}
 
 	renderSuggestion(suggestion: IDateCompletion, el: HTMLElement): void {
