@@ -47,7 +47,7 @@ export class ObsidianLinkEmbedSettingTab extends PluginSettingTab {
 				});
 			});
 		new Setting(containerEl)
-			.setName('Remvoe dismiss')
+			.setName('Remove Dismiss')
 			.setDesc(
 				'Remove dismiss from popup menu. You can always use ESC to dismiss the popup menu.',
 			)
@@ -60,7 +60,7 @@ export class ObsidianLinkEmbedSettingTab extends PluginSettingTab {
 					});
 			});
 		new Setting(containerEl)
-			.setName('Auto embed')
+			.setName('Auto Embed')
 			.setDesc('Auto embed link when pasting a link into an empty line.')
 			.addToggle((value) => {
 				value
