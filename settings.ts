@@ -10,6 +10,7 @@ export interface ObsidianLinkEmbedPluginSettings {
 	backup: string;
 	inPlace: boolean;
 	debug: boolean;
+	delay: number;
 }
 
 export const DEFAULT_SETTINGS: ObsidianLinkEmbedPluginSettings = {
@@ -20,6 +21,7 @@ export const DEFAULT_SETTINGS: ObsidianLinkEmbedPluginSettings = {
 	backup: 'jsonlink',
 	inPlace: false,
 	debug: false,
+	delay: 0,
 };
 
 export class ObsidianLinkEmbedSettingTab extends PluginSettingTab {
@@ -36,6 +38,8 @@ export class ObsidianLinkEmbedSettingTab extends PluginSettingTab {
 		containerEl.empty();
 
 		containerEl.createEl('h2', { text: 'Link Embed' });
+
+		containerEl.createEl('h3', { text: 'User Option' });
 
 		new Setting(containerEl)
 			.setName('Popup Menu')
@@ -107,6 +111,9 @@ export class ObsidianLinkEmbedSettingTab extends PluginSettingTab {
 						this.plugin.saveSettings();
 					});
 			});
+
+		containerEl.createEl('h3', { text: 'Dev Option' });
+
 		new Setting(containerEl)
 			.setName('Debug')
 			.setDesc('Enable debug mode.')
@@ -115,6 +122,20 @@ export class ObsidianLinkEmbedSettingTab extends PluginSettingTab {
 					this.plugin.settings.debug = value;
 					this.plugin.saveSettings();
 				});
+			});
+
+		new Setting(containerEl)
+			.setName('Delay')
+			.setDesc('Add delay before replacing preview.(ms)')
+			.addText((value) => {
+				value
+					.setValue(String(this.plugin.settings.delay))
+					.onChange((value) => {
+						if (!isNaN(Number(value))) {
+							this.plugin.settings.delay = Number(value);
+							this.plugin.saveSettings();
+						}
+					});
 			});
 	}
 }

@@ -137,10 +137,15 @@ export default class ObsidianLinkEmbedPlugin extends Plugin {
 		const cursor = editor.getCursor();
 		const lineText = editor.getLine(cursor.line);
 		let template = TEMPLATE;
+		let newLine = false;
 		if (lineText.length > 0) {
-			template = '\n' + template;
+			newLine = true;
 		}
-		editor.setCursor({ line: cursor.line, ch: lineText.length });
+		if (newLine) {
+			editor.setCursor({ line: cursor.line + 1, ch: 0 });
+		} else {
+			editor.setCursor({ line: cursor.line, ch: lineText.length });
+		}
 		const startCursor = editor.getCursor();
 		const embed = Mustache.render(template, {
 			title: 'Fetching',
@@ -165,6 +170,11 @@ export default class ObsidianLinkEmbedPlugin extends Plugin {
 					console.log('Link Embed: meta data', data);
 				}
 				const embed = Mustache.render(template, data);
+				if (this.settings.delay > 0) {
+					await new Promise((f) =>
+						setTimeout(f, this.settings.delay),
+					);
+				}
 				editor.replaceRange(embed, startCursor, endCursor);
 				break;
 			} catch (error) {
