@@ -6,7 +6,7 @@ This is how it looks.
 
 ![demo](https://raw.githubusercontent.com/Seraphli/obsidian-link-embed/main/docs/demo.gif)
 
-PS: If you happen to know any other website that provides free API for users to grab meta data from URLs, please let me know. This plugin can be more robust with your help.
+PS: If you happen to know any other website that provides free API for users to grab metadata from URLs, please let me know. This plugin can be more robust with your help.
 
 ## Usage
 
