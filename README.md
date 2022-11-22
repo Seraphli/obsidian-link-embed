@@ -6,6 +6,8 @@ This is how it looks.
 
 ![demo](https://raw.githubusercontent.com/Seraphli/obsidian-link-embed/main/docs/demo.gif)
 
+**Note** Starting from 2.0.0, embeds are rendered with `MarkdownCodeBlockProcessor`, which avoids expanding the HTML block. You can convert your old embeds to new code blocks with the `Convert` button in the setting.
+
 PS: If you happen to know any other website that provides free API for users to grab metadata from URLs, please let me know. This plugin can be more robust with your help.
 
 ## Usage

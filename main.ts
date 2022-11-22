@@ -1,7 +1,21 @@
-import { Editor, Notice, Plugin, MarkdownView, EditorPosition } from 'obsidian';
+import {
+	Editor,
+	Notice,
+	Plugin,
+	MarkdownView,
+	EditorPosition,
+	stringifyYaml,
+	parseYaml,
+} from 'obsidian';
 import Mustache from 'mustache';
 import { parsers } from './parser';
-import { TEMPLATE, REGEX, SPINNER } from './constants';
+import {
+	HTMLTemplate,
+	REGEX,
+	SPINNER,
+	MarkdownTemplate,
+	EmbedInfo,
+} from './constants';
 import type { ObsidianLinkEmbedPluginSettings } from './settings';
 import { ObsidianLinkEmbedSettingTab, DEFAULT_SETTINGS } from './settings';
 import { ExEditor, Selected } from './exEditor';
@@ -88,6 +102,19 @@ export default class ObsidianLinkEmbedPlugin extends Plugin {
 			});
 		});
 
+		this.registerMarkdownCodeBlockProcessor('embed', (source, el, ctx) => {
+			const info = parseYaml(source.trim()) as EmbedInfo;
+			const html = Mustache.render(HTMLTemplate, {
+				title: info.title,
+				image: info.image,
+				description: info.description,
+				url: info.url,
+			});
+			let parser = new DOMParser();
+			var doc = parser.parseFromString(html, 'text/html');
+			el.replaceWith(doc.body);
+		});
+
 		this.addSettingTab(new ObsidianLinkEmbedSettingTab(this.app, this));
 	}
 
@@ -136,7 +163,7 @@ export default class ObsidianLinkEmbedPlugin extends Plugin {
 		// put a dummy preview here first
 		const cursor = editor.getCursor();
 		const lineText = editor.getLine(cursor.line);
-		let template = TEMPLATE;
+		let template = MarkdownTemplate;
 		let newLine = false;
 		if (lineText.length > 0) {
 			newLine = true;
@@ -186,6 +213,7 @@ export default class ObsidianLinkEmbedPlugin extends Plugin {
 				}
 				break;
 			} catch (error) {
+				console.log('Link Embed: error', error);
 				idx += 1;
 				if (idx === selectedParsers.length) {
 					this.errorNotice();
