@@ -51,6 +51,11 @@ Here is the table comparing the supported parsers.
 | [MicroLink(Default)](https://microlink.io/) | \*\*\* | \*\*\* | \*\*        | 50/day     |
 | [Iframely](https://iframely.com/)           | \*\*   | \*\*   | \*          | 1000/month |
 
+
+## See Also
+
+[obsidian-aggregator](https://github.com/Seraphli/obsidian-aggregator)
+
 ## Thanks
 
 - [Obsidian Rich Link](https://github.com/dhamaniasad/obsidian-rich-links)
