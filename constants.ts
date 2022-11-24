@@ -3,8 +3,7 @@ title: \'{{{title}}}\'
 image: \'{{{image}}}\'
 description: \'{{{description}}}\'
 url: \'{{{url}}}\'
-\`\`\`
-`;
+\`\`\``;
 
 export const HTMLTemplate = `<div
   style="
@@ -50,8 +49,7 @@ export const HTMLTemplate = `<div
       </div>
     </div>
   </div>
-</div>
-`;
+</div>`;
 
 export const REGEX = {
 	URL: '(http|ftp|https):\\/\\/([\\w_-]+(?:(?:\\.[\\w_-]+)+))([\\w.,@?^=%&:\\/~+#-]*[\\w@?^=%&\\/~+#-])',
@@ -99,8 +97,8 @@ export const REGEX = {
       <\\/div>
     <\\/div>
   <\\/div>
-<\\/div>
-`,
+<\\/div>`,
+	ERROR: '<div class="em">',
 };
 
 export const SPINNER =

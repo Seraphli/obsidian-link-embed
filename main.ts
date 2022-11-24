@@ -174,12 +174,13 @@ export default class ObsidianLinkEmbedPlugin extends Plugin {
 			editor.setCursor({ line: cursor.line, ch: lineText.length });
 		}
 		const startCursor = editor.getCursor();
-		const dummyEmbed = Mustache.render(template, {
-			title: 'Fetching',
-			image: SPINNER,
-			description: `Fetching ${url}`,
-			url: url,
-		});
+		const dummyEmbed =
+			Mustache.render(template, {
+				title: 'Fetching',
+				image: SPINNER,
+				description: `Fetching ${url}`,
+				url: url,
+			}) + '\n';
 		editor.replaceSelection(dummyEmbed);
 		const endCursor = editor.getCursor();
 		// if we can fetch result, we can replace the embed with true content
@@ -196,7 +197,7 @@ export default class ObsidianLinkEmbedPlugin extends Plugin {
 				if (this.settings.debug) {
 					console.log('Link Embed: meta data', data);
 				}
-				const embed = Mustache.render(template, data);
+				const embed = Mustache.render(template, data) + '\n';
 				if (this.settings.delay > 0) {
 					await new Promise((f) =>
 						setTimeout(f, this.settings.delay),

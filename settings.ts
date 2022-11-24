@@ -3,6 +3,7 @@ import ObsidianLinkEmbedPlugin from 'main';
 import { parseOptions } from './parser';
 import { REGEX, MarkdownTemplate } from './constants';
 import Mustache from 'mustache';
+import he from 'he';
 
 export interface ObsidianLinkEmbedPluginSettings {
 	popup: boolean;
@@ -129,11 +130,15 @@ export class ObsidianLinkEmbedSettingTab extends PluginSettingTab {
 						let content = await this.app.vault.read(file);
 						const htmlRegex = new RegExp(REGEX.HTML, 'gm');
 						let elems = content.matchAll(htmlRegex);
+						let bReplace = false;
 						for (let elem of elems) {
 							let description = elem[5] || '';
 							description = description.replace(/\n/g, ' ');
+							description = he.unescape(description);
+							let title = he.unescape(elem[4] || '');
+							const origin = elem[0];
 							const data = {
-								title: elem[4] || '',
+								title: title,
 								image: elem[2] || '',
 								description: description,
 								url: elem[1],
@@ -142,9 +147,32 @@ export class ObsidianLinkEmbedSettingTab extends PluginSettingTab {
 								MarkdownTemplate,
 								data,
 							);
-							content = content.replace(elem[0], embed);
+							if (this.plugin.settings.debug) {
+								console.log(
+									`Link Embed: Replace\nOrigin\n${origin}\nNew\n${embed}\nBefore\n${content}\nAfter\n${content
+										.split(origin)
+										.join(embed)}`,
+								);
+							}
+							content = content.split(origin).join(embed);
+							// content = content.replace(elem[0], embed);
+							bReplace = true;
 						}
-						await this.app.vault.modify(file, content);
+						const errorMatch = content.match(
+							new RegExp(REGEX.ERROR, 'gm'),
+						);
+						if (
+							bReplace &&
+							errorMatch != null &&
+							errorMatch.length
+						) {
+							new Notice(`Conversion Fail on ${file.path}`);
+							if (this.plugin.settings.debug) {
+								console.log('Link Embed: Convert', content);
+							}
+						} else {
+							await this.app.vault.modify(file, content);
+						}
 					}
 					new Notice(`Conversion End`);
 				});
