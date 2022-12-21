@@ -1,17 +1,10 @@
-img {
-  vertical-align: middle;
-  border-style: none;
-}
-svg:not(:root) {
-  overflow: hidden;
-}
 .w,
 body {
-  overflow: hidden;
-  margin: 0;
-  padding: 0;
-  background: none transparent;
-  text-align: left;
+	overflow: hidden;
+	margin: 0;
+	padding: 0;
+	background: none transparent;
+	text-align: left;
 }
 a {
 	background-color: transparent;
