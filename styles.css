@@ -1,23 +1,30 @@
-.w,
-body {
+.w {
 	overflow: hidden;
 	margin: 0;
 	padding: 0;
 	background: none transparent;
 	text-align: left;
 }
-a {
+.em > a,
+.tc > a,
+.th > a {
 	background-color: transparent;
 	-webkit-text-decoration-skip: objects;
 }
-a:not([href]):not([tabindex]) {
+.em a:not([href]):not([tabindex]),
+.tc a:not([href]):not([tabindex]),
+.th a:not([href]):not([tabindex]) {
 	color: inherit;
 	text-decoration: none;
 }
-a:not([href]):not([tabindex]):focus {
+.em a:not([href]):not([tabindex]):focus,
+.tc a:not([href]):not([tabindex]):focus,
+.th a:not([href]):not([tabindex]):focus {
 	outline: 0;
 }
-a {
+.em > a,
+.tc > a,
+.th > a {
 	text-decoration: none;
 	color: inherit;
 	-ms-touch-action: manipulation;
