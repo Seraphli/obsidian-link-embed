@@ -197,7 +197,13 @@ export default class ObsidianLinkEmbedPlugin extends Plugin {
 				if (this.settings.debug) {
 					console.log('Link Embed: meta data', data);
 				}
-				const embed = Mustache.render(template, data) + '\n';
+				const escapedData = {
+					title: data.title.replace(/"/g, '\\"'),
+					image: data.image,
+					description: data.description.replace(/"/g, '\\"'),
+					url: data.url,
+				};
+				const embed = Mustache.render(template, escapedData) + '\n';
 				if (this.settings.delay > 0) {
 					await new Promise((f) =>
 						setTimeout(f, this.settings.delay),
