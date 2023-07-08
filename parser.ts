@@ -1,5 +1,6 @@
 import { Notice } from 'obsidian';
 import Mustache from 'mustache';
+import { requestUrl } from 'obsidian';
 
 export abstract class Parser {
 	api: string;
@@ -74,14 +75,78 @@ class IframelyParser extends Parser {
 	}
 }
 
+class LocalParser extends Parser {
+	process(data: any): { title: string; image: string; description: string; } {
+		throw new Error('Method not implemented.');
+	}
+	constructor() {
+		super();
+	}
+	
+	getTitle(doc: Document): string {
+		let element = doc.querySelector('head meta[property="og:title"]');
+		console.log("Title1 ",element)
+		if (element instanceof HTMLMetaElement) {
+			return element.content;
+		}
+		element = doc.querySelector('head title')
+		console.log("Title2 ",element)
+		if (element){
+			return element.textContent;
+		}
+		return null;
+	}
+	
+	getImage(doc: Document): string {
+		let element = doc.querySelector('head meta[property="og:image"]');
+		if (element instanceof HTMLMetaElement) {
+			return element.content;
+		}
+		return '';
+	}
+
+	getDescription(doc: Document): string {
+		let element = doc.querySelector('head meta[property="og:description"]');
+		if (element instanceof HTMLMetaElement) {
+			return element.content;
+		}
+		element = doc.querySelector('head meta[name="description"]')
+		if (element instanceof HTMLMetaElement) {
+			return element.content;
+		}
+		return '';
+	}
+
+	async parse(url: string): Promise<{ title: string; image: string; description: string; url: string;}> {
+		const html = await requestUrl({url: url}).then((site) => { return site.text} )
+		console.log(html)
+		let parser = new DOMParser();
+		const doc = parser.parseFromString(html, 'text/html')
+		console.log(doc)
+
+		let title = this.getTitle(doc)
+		if(!title){
+			title = (new URL(url).hostname)
+		}
+
+		let image = this.getImage(doc);
+		let description = this.getDescription(doc);
+
+
+		return { title, image, description, url };
+	}
+}
+
 export const parseOptions = {
 	jsonlink: 'JSONLink',
 	microlink: 'MicroLink',
 	iframely: 'Iframely',
+	local: 'Local'
 };
 
 export const parsers: { [key: string]: Parser } = {
 	jsonlink: new JSONLinkParser(),
 	microlink: new MicroLinkParser(),
 	iframely: new IframelyParser(),
+	local: new LocalParser(),
 };
