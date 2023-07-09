@@ -76,31 +76,37 @@ class IframelyParser extends Parser {
 }
 
 class LocalParser extends Parser {
-	process(data: any): { title: string; image: string; description: string; } {
+	process(data: any): { title: string; image: string; description: string } {
 		throw new Error('Method not implemented.');
 	}
-	constructor() {
-		super();
-	}
-	
-	getTitle(doc: Document): string {
+
+	getTitle(doc: Document, url: URL): string {
 		let element = doc.querySelector('head meta[property="og:title"]');
-		console.log("Title1 ",element)
 		if (element instanceof HTMLMetaElement) {
 			return element.content;
 		}
-		element = doc.querySelector('head title')
-		console.log("Title2 ",element)
-		if (element){
+		element = doc.querySelector('head title');
+		if (element) {
 			return element.textContent;
 		}
-		return null;
+		return url.hostname;
 	}
-	
-	getImage(doc: Document): string {
+
+	getImage(doc: Document, url: URL): string {
 		let element = doc.querySelector('head meta[property="og:image"]');
 		if (element instanceof HTMLMetaElement) {
 			return element.content;
+		}
+		element = doc.querySelector('body img');
+		if (element) {
+			// Get image from document and return the full URL
+			let attribute = element.getAttribute('src');
+			if (attribute) {
+				if (attribute.startsWith('/')) {
+					attribute = new URL(attribute, url.origin).href;
+				}
+				return attribute;
+			}
 		}
 		return '';
 	}
@@ -110,29 +116,32 @@ class LocalParser extends Parser {
 		if (element instanceof HTMLMetaElement) {
 			return element.content;
 		}
-		element = doc.querySelector('head meta[name="description"]')
+		element = doc.querySelector('head meta[name="description"]');
 		if (element instanceof HTMLMetaElement) {
 			return element.content;
 		}
 		return '';
 	}
 
-	async parse(url: string): Promise<{ title: string; image: string; description: string; url: string;}> {
-		const html = await requestUrl({url: url}).then((site) => { return site.text} )
-		console.log(html)
+	async parse(url: string): Promise<{
+		title: string;
+		image: string;
+		description: string;
+		url: string;
+	}> {
+		const html = await requestUrl({ url: url }).then((site) => {
+			return site.text;
+		});
 		let parser = new DOMParser();
-		const doc = parser.parseFromString(html, 'text/html')
-		console.log(doc)
-
-		let title = this.getTitle(doc)
-		if(!title){
-			title = (new URL(url).hostname)
+		const doc = parser.parseFromString(html, 'text/html');
+		// get base url from document
+		let uRL = new URL(url);
+		if (this.debug) {
+			console.log('Link Embed: doc', doc);
 		}
-
-		let image = this.getImage(doc);
+		let title = this.getTitle(doc, uRL);
+		let image = this.getImage(doc, uRL);
 		let description = this.getDescription(doc);
-
-
 		return { title, image, description, url };
 	}
 }
@@ -141,7 +150,7 @@ export const parseOptions = {
 	jsonlink: 'JSONLink',
 	microlink: 'MicroLink',
 	iframely: 'Iframely',
-	local: 'Local'
+	local: 'Local',
 };
 
 export const parsers: { [key: string]: Parser } = {
