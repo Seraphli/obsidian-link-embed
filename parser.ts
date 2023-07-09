@@ -102,8 +102,8 @@ class LocalParser extends Parser {
 			// Get image from document and return the full URL
 			let attribute = element.getAttribute('src');
 			if (attribute) {
-				if (attribute.startsWith('/')) {
-					attribute = new URL(attribute, url.origin).href;
+				if (!attribute.startsWith('data:')) {
+					attribute = new URL(attribute, url).href;
 				}
 				return attribute;
 			}
