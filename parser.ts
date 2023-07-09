@@ -1,5 +1,6 @@
 import { Notice } from 'obsidian';
 import Mustache from 'mustache';
+import { requestUrl } from 'obsidian';
 
 export abstract class Parser {
 	api: string;
@@ -74,14 +75,87 @@ class IframelyParser extends Parser {
 	}
 }
 
+class LocalParser extends Parser {
+	process(data: any): { title: string; image: string; description: string } {
+		throw new Error('Method not implemented.');
+	}
+
+	getTitle(doc: Document, url: URL): string {
+		let element = doc.querySelector('head meta[property="og:title"]');
+		if (element instanceof HTMLMetaElement) {
+			return element.content;
+		}
+		element = doc.querySelector('head title');
+		if (element) {
+			return element.textContent;
+		}
+		return url.hostname;
+	}
+
+	getImage(doc: Document, url: URL): string {
+		let element = doc.querySelector('head meta[property="og:image"]');
+		if (element instanceof HTMLMetaElement) {
+			return element.content;
+		}
+		element = doc.querySelector('body img');
+		if (element) {
+			// Get image from document and return the full URL
+			let attribute = element.getAttribute('src');
+			if (attribute) {
+				if (attribute.startsWith('/')) {
+					attribute = new URL(attribute, url.origin).href;
+				}
+				return attribute;
+			}
+		}
+		return '';
+	}
+
+	getDescription(doc: Document): string {
+		let element = doc.querySelector('head meta[property="og:description"]');
+		if (element instanceof HTMLMetaElement) {
+			return element.content;
+		}
+		element = doc.querySelector('head meta[name="description"]');
+		if (element instanceof HTMLMetaElement) {
+			return element.content;
+		}
+		return '';
+	}
+
+	async parse(url: string): Promise<{
+		title: string;
+		image: string;
+		description: string;
+		url: string;
+	}> {
+		const html = await requestUrl({ url: url }).then((site) => {
+			return site.text;
+		});
+		let parser = new DOMParser();
+		const doc = parser.parseFromString(html, 'text/html');
+		// get base url from document
+		let uRL = new URL(url);
+		if (this.debug) {
+			console.log('Link Embed: doc', doc);
+		}
+		let title = this.getTitle(doc, uRL);
+		let image = this.getImage(doc, uRL);
+		let description = this.getDescription(doc);
+		return { title, image, description, url };
+	}
+}
+
 export const parseOptions = {
 	jsonlink: 'JSONLink',
 	microlink: 'MicroLink',
 	iframely: 'Iframely',
+	local: 'Local',
 };
 
 export const parsers: { [key: string]: Parser } = {
 	jsonlink: new JSONLinkParser(),
 	microlink: new MicroLinkParser(),
 	iframely: new IframelyParser(),
+	local: new LocalParser(),
 };
