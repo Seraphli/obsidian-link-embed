@@ -142,6 +142,7 @@ class LocalParser extends Parser {
 		let title = this.getTitle(doc, uRL);
 		let image = this.getImage(doc, uRL);
 		let description = this.getDescription(doc);
+		description = description.replace(/\n/g, ' ');
 		return { title, image, description, url };
 	}
 }
