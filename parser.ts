@@ -183,10 +183,10 @@ class LocalParser extends Parser {
     }
 
     async getHtmlByElectron(url: string): Promise<string> {
-        const { remote } = electronPkg;
-        const { BrowserWindow } = remote;
+		try {
+			const { remote } = electronPkg;
+			const { BrowserWindow } = remote;
 
-        try {
             const window = new BrowserWindow({
                 width: 1366,
                 height: 768,
@@ -210,6 +210,9 @@ class LocalParser extends Parser {
             return doc
 
         } catch (ex) {
+			if (this.debug) {
+				console.log('Failed to use electron: ', ex);
+			}
             return null;
         }
     }
