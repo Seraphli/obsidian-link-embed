@@ -7,7 +7,9 @@ url: \"{{{url}}}\"
 
 export const HTMLTemplate = `<div
   style="
-    border: 1px solid rgb(222, 222, 222);
+    border: 1px solid var(--background-modifier-border);
+    overflow: hidden;
+    border-radius: var(--radius-s);
     box-shadow: rgba(0, 0, 0, 0.06) 0px 1px 3px;
   "
 >
