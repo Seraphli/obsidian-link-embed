@@ -43,7 +43,7 @@ class JSONLinkParser extends Parser {
 		const title = data.title || '';
 		const image = data.images[0] || '';
 		let description: string = data.description || '';
-		description = description.replace(/\n/g, ' ');
+		description = description.replace(/\n/g, ' ').replace(/\\/g, '\\\\');
 		return { title, image, description };
 	}
 }
@@ -57,7 +57,7 @@ class MicroLinkParser extends Parser {
 		const title = data.data.title || '';
 		const image = data.data.image?.url || data.data.logo?.url || '';
 		let description: string = data.data.description || '';
-		description = description.replace(/\n/g, ' ');
+		description = description.replace(/\n/g, ' ').replace(/\\/g, '\\\\');
 		return { title, image, description };
 	}
 }
@@ -71,7 +71,7 @@ class IframelyParser extends Parser {
 		const title = data.meta?.title || '';
 		const image = data.links[0]?.href || '';
 		let description: string = data.meta?.description || '';
-		description = description.replace(/\n/g, ' ');
+		description = description.replace(/\n/g, ' ').replace(/\\/g, '\\\\');
 		return { title, image, description };
 	}
 }
@@ -82,8 +82,8 @@ class LocalParser extends Parser {
         const image = data.image || '';
         let description: string = data.description || '';
 
-        description = description.replace(/\n/g, ' ');
-        title = title.replace(/\n/g, ' ');
+        description = description.replace(/\n/g, ' ').replace(/\\/g, '\\\\');
+        title = title.replace(/\n/g, ' ').replace(/\\/g, '\\\\');
 
         return { title, image, description };
     }

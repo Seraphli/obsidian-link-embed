@@ -133,7 +133,7 @@ export class ObsidianLinkEmbedSettingTab extends PluginSettingTab {
 						let bReplace = false;
 						for (let elem of elems) {
 							let description = elem[5] || '';
-							description = description.replace(/\n/g, ' ');
+							description = description.replace(/\n/g, ' ').replace(/\\/g, '\\\\');
 							description = he.unescape(description);
 							let title = he.unescape(elem[4] || '');
 							const origin = elem[0];
