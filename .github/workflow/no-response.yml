@@ -1,0 +1,26 @@
+name: no-response
+description: Closes Issues where the original author doesn't respond to a request for information
+inputs:
+  closeComment:
+    description: Comment to post when closing an Issue for lack of response. Set to `false` to disable.
+    default: >
+      This issue has been automatically closed because there has been no response
+      to our request for more information from the original author. With only the
+      information that is currently in the issue, we don't have enough information
+      to take action. Please reach out if you have or find the answers we need so
+      that we can investigate further.
+  daysUntilClose:
+    description: Number of days of inactivity before an Issue is closed for lack of response
+    default: 14
+  responseRequiredColor:
+    description: Color for the `responseRequiredLabel`
+    default: ffffff
+  responseRequiredLabel:
+    description: Label indicating that a response from the original author is required
+    default: more-information-needed
+  token:
+    description: Token to access the GitHub API
+    required: true
+runs:
+  using: node12
+  main: 'dist/index.js'
