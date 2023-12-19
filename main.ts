@@ -6,7 +6,7 @@ import {
     EditorPosition,
     stringifyYaml,
     parseYaml,
-  } from 'obsidian';
+} from 'obsidian';
 import Mustache from 'mustache';
 import { parsers } from './parser';
 import {
