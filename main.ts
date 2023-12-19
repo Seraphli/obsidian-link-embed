@@ -19,7 +19,7 @@ import type { ObsidianLinkEmbedPluginSettings } from './settings';
 import { ObsidianLinkEmbedSettingTab, DEFAULT_SETTINGS } from './settings';
 import { ExEditor, Selected } from './exEditor';
 import EmbedSuggest from './suggest';
-  
+
 interface PasteInfo {
 	trigger: boolean;
 	text: string;
@@ -28,7 +28,7 @@ interface PasteInfo {
 export default class ObsidianLinkEmbedPlugin extends Plugin {
 	settings: ObsidianLinkEmbedPluginSettings;
 	pasteInfo: PasteInfo;
-  
+
 	async getText(editor: Editor): Promise<Selected> {
 		let selected = ExEditor.getSelectedText(editor, this.settings.debug);
 		let cursor = editor.getCursor();
@@ -41,15 +41,15 @@ export default class ObsidianLinkEmbedPlugin extends Plugin {
 		}
 		return selected;
 	}
-  
+
 	async onload() {
 		await this.loadSettings();
-  
+
 		this.pasteInfo = {
 			trigger: false,
 			text: '',
 		};
-	
+
 		this.registerEvent(
 			this.app.workspace.on(
 				'editor-paste',
@@ -70,9 +70,9 @@ export default class ObsidianLinkEmbedPlugin extends Plugin {
 				},
 			),
 		);
-	
+
 		this.registerEditorSuggest(new EmbedSuggest(this.app, this));
-	
+
 		this.addCommand({
 			id: 'embed-link',
 			name: 'Embed link',
@@ -94,7 +94,7 @@ export default class ObsidianLinkEmbedPlugin extends Plugin {
 				editorCallback: async (editor: Editor) => {
 					let selected = await this.getText(editor);
 					if (!this.checkUrlValid(selected)) {
-					return;
+						return;
 					}
 					await this.embedUrl(editor, selected, [name]);
 				},
@@ -111,9 +111,9 @@ export default class ObsidianLinkEmbedPlugin extends Plugin {
   
 		this.addSettingTab(new ObsidianLinkEmbedSettingTab(this.app, this));
 	}
-  
+
 	onunload() {}
-  
+
 	async loadSettings() {
 		this.settings = Object.assign(
 			{},
@@ -121,11 +121,11 @@ export default class ObsidianLinkEmbedPlugin extends Plugin {
 			await this.loadData(),
 		);
 	}
-  
+
 	async saveSettings() {
-		 await this.saveData(this.settings);
+		await this.saveData(this.settings);
 	}
-  
+
 	checkUrlValid(selected: Selected): boolean {
 		if (
 			!(
@@ -139,7 +139,6 @@ export default class ObsidianLinkEmbedPlugin extends Plugin {
 		return true;
 	}
 
-  
 	async embedUrl(
 		editor: Editor,
 		selected: Selected,
@@ -149,11 +148,11 @@ export default class ObsidianLinkEmbedPlugin extends Plugin {
 		let url = selected.text;
 		// replace selection if in place
 		if (selected.can && inPlace) {
-		editor.replaceRange(
-					'',
-					selected.boundary.start,
-					selected.boundary.end,
-				);
+			editor.replaceRange(
+				'',
+				selected.boundary.start,
+				selected.boundary.end,
+			);
 		}
 		// put a dummy preview here first
 		const cursor = editor.getCursor();
@@ -171,10 +170,10 @@ export default class ObsidianLinkEmbedPlugin extends Plugin {
 		const startCursor = editor.getCursor();
 		const dummyEmbed =
 			Mustache.render(template, {
-			title: 'Fetching',
-			image: SPINNER,
-			description: `Fetching ${url}`,
-			url: url,
+				title: 'Fetching',
+				image: SPINNER,
+				description: `Fetching ${url}`,
+				url: url,
 			}) + '\n';
 		editor.replaceSelection(dummyEmbed);
 		const endCursor = editor.getCursor();
@@ -190,13 +189,13 @@ export default class ObsidianLinkEmbedPlugin extends Plugin {
 			try {
 				const data = await parser.parse(url);
 				if (this.settings.debug) {
-				  console.log('Link Embed: meta data', data);
+					console.log('Link Embed: meta data', data);
 				}
 				const escapedData = {
-				  title: data.title.replace(/"/g, '\\"'),
-				  image: data.image,
-				  description: data.description.replace(/"/g, '\\"'),
-				  url: data.url,
+					title: data.title.replace(/"/g, '\\"'),
+					image: data.image,
+					description: data.description.replace(/"/g, '\\"'),
+					url: data.url,
 				};
 				const embed = Mustache.render(template, escapedData) + '\n';
 				if (this.settings.delay > 0) {
@@ -207,18 +206,18 @@ export default class ObsidianLinkEmbedPlugin extends Plugin {
 				// before replacing, check whether dummy is deleted or modified
 				const dummy = editor.getRange(startCursor, endCursor);
 				if (dummy == dummyEmbed) {
-				  editor.replaceRange(embed, startCursor, endCursor);
+					editor.replaceRange(embed, startCursor, endCursor);
 				} else {
-				  new Notice(
-					`Dummy preview has been deleted or modified. Replacing is cancelled.`,
-				  );
+					new Notice(
+						`Dummy preview has been deleted or modified. Replacing is cancelled.`,
+					);
 				}
 				break;
 			} catch (error) {
 				console.log('Link Embed: error', error);
 				idx += 1;
 				if (idx === selectedParsers.length) {
-				  this.errorNotice();
+					this.errorNotice();
 				}
 			}
 		}
