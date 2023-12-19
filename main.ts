@@ -112,7 +112,7 @@ export default class ObsidianLinkEmbedPlugin extends Plugin {
 			});
 			let parser = new DOMParser();
 			var doc = parser.parseFromString(html, 'text/html');
-			el.replaceWith(doc.body);
+			el.replaceWith(doc.body.firstChild);
 		});
 
 		this.addSettingTab(new ObsidianLinkEmbedSettingTab(this.app, this));

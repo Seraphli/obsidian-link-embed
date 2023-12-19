@@ -16,7 +16,6 @@ interface IDateCompletion {
 
 export default class EmbedSuggest extends EditorSuggest<IDateCompletion> {
 	private plugin: ObsidianLinkEmbedPlugin;
-	private app: App;
 	private editor: Editor;
 	private cursor: EditorPosition;
 
