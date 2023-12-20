@@ -104,12 +104,10 @@ export default class ObsidianLinkEmbedPlugin extends Plugin {
 
 		this.registerMarkdownCodeBlockProcessor('embed', (source, el, ctx) => {
 			const info = parseYaml(source.trim()) as EmbedInfo;
-			const html = Mustache.render(HTMLTemplate, {
-				title: info.title,
-				image: info.image,
-				description: info.description,
-				url: info.url,
-			});
+			const html = HTMLTemplate.replace(/{{title}}/gm, info.title)
+				.replace(/{{{image}}}/gm, info.image)
+				.replace(/{{description}}/gm, info.description)
+				.replace(/{{{url}}}/gm, info.url);
 			let parser = new DOMParser();
 			var doc = parser.parseFromString(html, 'text/html');
 			el.replaceWith(doc.body.firstChild);
