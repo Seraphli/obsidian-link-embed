@@ -103,7 +103,9 @@ export default class ObsidianLinkEmbedPlugin extends Plugin {
 		});
 
 		this.registerMarkdownCodeBlockProcessor('embed', (source, el, ctx) => {
-			const info = parseYaml(source.trim()) as EmbedInfo;
+			const info = parseYaml(
+				source.replace(/^\s+|\s+$/gm, ''),
+			) as EmbedInfo;
 			const html = HTMLTemplate.replace(/{{title}}/gm, info.title)
 				.replace(/{{{image}}}/gm, info.image)
 				.replace(/{{description}}/gm, info.description)
