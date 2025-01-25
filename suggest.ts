@@ -21,7 +21,6 @@ export default class EmbedSuggest extends EditorSuggest<IDateCompletion> {
 
 	constructor(app: App, plugin: ObsidianLinkEmbedPlugin) {
 		super(app);
-		this.app = app;
 		this.plugin = plugin;
 	}
 
