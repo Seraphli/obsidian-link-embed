@@ -384,11 +384,12 @@ class LocalParser extends Parser {
 	}
 
 	async getHtmlByElectron(url: string): Promise<string> {
+		let window: any = null;
 		try {
 			const { remote } = electronPkg;
 			const { BrowserWindow } = remote;
 
-			const window = new BrowserWindow({
+			window = new BrowserWindow({
 				width: 1366,
 				height: 768,
 				webPreferences: {
@@ -412,10 +413,14 @@ class LocalParser extends Parser {
 			let doc = await window.webContents.executeJavaScript(
 				'document.documentElement.outerHTML;',
 			);
+			window.close();
 			return doc;
 		} catch (ex) {
 			if (this.debug) {
 				console.log('Failed to use electron: ', ex);
+			}
+			if (window) {
+				window.close();
 			}
 			return null;
 		}

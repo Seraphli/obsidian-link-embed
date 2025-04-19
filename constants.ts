@@ -2,8 +2,8 @@ export const MarkdownTemplate = `\`\`\`embed
 title: \"{{{title}}}\"
 image: \"{{{image}}}\"
 description: \"{{{description}}}\"
-url: \"{{{url}}}\"
-{{{metadata}}}
+url: \"{{{url}}}\"{{#metadata}}
+{{{metadata}}}{{/metadata}}
 \`\`\``;
 
 export const HTMLTemplate = `<div

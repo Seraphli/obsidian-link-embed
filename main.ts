@@ -354,13 +354,13 @@ export default class ObsidianLinkEmbedPlugin extends Plugin {
 					);
 				}
 
-				const escapedData = {
-					title: data.title.replace(/"/g, '\\"'),
-					image: data.image,
-					description: data.description.replace(/"/g, '\\"'),
-					url: data.url,
-					metadata: metadata,
-				};
+const escapedData = {
+title: data.title.replace(/"/g, '\\"'),
+image: data.image,
+description: data.description.replace(/"/g, '\\"'),
+url: data.url,
+metadata: metadata || false, // Ensure empty string becomes falsy for Mustache conditional
+};
 				const embed = Mustache.render(template, escapedData) + '\n';
 				if (this.settings.delay > 0) {
 					await new Promise((f) =>
