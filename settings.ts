@@ -15,6 +15,8 @@ export interface ObsidianLinkEmbedPluginSettings {
 	debug: boolean;
 	delay: number;
 	linkpreviewApiKey: string;
+	metadataTemplate: string;
+	useMetadataTemplate: boolean;
 }
 
 export const DEFAULT_SETTINGS: ObsidianLinkEmbedPluginSettings = {
@@ -27,6 +29,9 @@ export const DEFAULT_SETTINGS: ObsidianLinkEmbedPluginSettings = {
 	debug: false,
 	delay: 0,
 	linkpreviewApiKey: '',
+	metadataTemplate:
+		'createdby: "linkembed"\nparser: "{{parser}}"\ndate: "{{date}}"\ncustom_date: "{{#formatDate}}YYYY-MM-DD HH:mm:ss{{/formatDate}}"',
+	useMetadataTemplate: false,
 };
 
 export class ObsidianLinkEmbedSettingTab extends PluginSettingTab {
@@ -180,6 +185,58 @@ export class ObsidianLinkEmbedSettingTab extends PluginSettingTab {
 					}
 					new Notice(`Conversion End`);
 				});
+			});
+
+		containerEl.createEl('h3', { text: 'Embed Metadata' });
+
+		new Setting(containerEl)
+			.setName('Use Metadata Template')
+			.setDesc(
+				'Add metadata about what created the embed (plugin name, parser type, date).',
+			)
+			.addToggle((value) => {
+				value
+					.setValue(this.plugin.settings.useMetadataTemplate)
+					.onChange((value) => {
+						this.plugin.settings.useMetadataTemplate = value;
+						this.plugin.saveSettings();
+					});
+			});
+
+		new Setting(containerEl)
+			.setName('Metadata Template')
+			.setDesc(
+				'Customize metadata template. Variables: {{parser}} for parser type, {{date}} for date in YYYY-MM-DD format. For custom date format use {{#formatDate}}YYYY-MM-DD HH:mm:ss{{/formatDate}}.',
+			)
+			.addTextArea((text) => {
+				text.inputEl.rows = 4;
+				text.inputEl.cols = 50;
+				text.setValue(this.plugin.settings.metadataTemplate).onChange(
+					(value) => {
+						// Try to parse as YAML to ensure it's valid
+						try {
+							// A simple check to see if the format is valid YAML
+							const lines = value.split('\n');
+							const isValid = lines.every((line) => {
+								if (line.trim() === '') return true;
+								return line.includes(':');
+							});
+
+							if (isValid) {
+								this.plugin.settings.metadataTemplate = value;
+								this.plugin.saveSettings();
+							}
+						} catch (e) {
+							// Invalid YAML format, don't save
+							if (this.plugin.settings.debug) {
+								console.log(
+									'Link Embed: Invalid YAML format in metadata template',
+									e,
+								);
+							}
+						}
+					},
+				);
 			});
 
 		containerEl.createEl('h3', { text: 'Provider Settings' });

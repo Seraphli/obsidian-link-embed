@@ -114,6 +114,18 @@ export default class ObsidianLinkEmbedPlugin extends Plugin {
 			let parser = new DOMParser();
 			var doc = parser.parseFromString(html, 'text/html');
 			el.replaceWith(doc.body.firstChild);
+
+			// Log metadata information if debugging is enabled
+			if (
+				this.settings.debug &&
+				(info.createdby || info.parser || info.date)
+			) {
+				console.log('Link Embed Metadata:', {
+					createdby: info.createdby || 'unknown',
+					parser: info.parser || 'unknown',
+					date: info.date || 'unknown',
+				});
+			}
 		});
 
 		this.addSettingTab(new ObsidianLinkEmbedSettingTab(this.app, this));
@@ -200,11 +212,93 @@ export default class ObsidianLinkEmbedPlugin extends Plugin {
 				if (this.settings.debug) {
 					console.log('Link Embed: meta data', data);
 				}
+
+				// Generate metadata if enabled in settings
+				let metadata = '';
+				if (this.settings.useMetadataTemplate) {
+					const now = new Date();
+
+					// Create a template context with variables that can be used in the metadata template
+					const templateContext = {
+						// Basic variables
+						parser: selectedParser,
+						// Standard date in YYYY-MM-DD format
+						date: `${now.getFullYear()}-${String(
+							now.getMonth() + 1,
+						).padStart(2, '0')}-${String(now.getDate()).padStart(
+							2,
+							'0',
+						)}`,
+						// Function to format date - allows custom date formatting
+						formatDate: () => {
+							return (text: string) => {
+								try {
+									// If text is empty, return standard ISO format
+									if (!text.trim())
+										return now.toISOString().split('T')[0];
+
+									// Simple replacements for common formats
+									return text
+										.replace(
+											'YYYY',
+											String(now.getFullYear()),
+										)
+										.replace(
+											'MM',
+											String(now.getMonth() + 1).padStart(
+												2,
+												'0',
+											),
+										)
+										.replace(
+											'DD',
+											String(now.getDate()).padStart(
+												2,
+												'0',
+											),
+										)
+										.replace(
+											'HH',
+											String(now.getHours()).padStart(
+												2,
+												'0',
+											),
+										)
+										.replace(
+											'mm',
+											String(now.getMinutes()).padStart(
+												2,
+												'0',
+											),
+										)
+										.replace(
+											'ss',
+											String(now.getSeconds()).padStart(
+												2,
+												'0',
+											),
+										);
+								} catch (e) {
+									console.log('Error formatting date:', e);
+									return now.toISOString().split('T')[0];
+								}
+							};
+						},
+					};
+
+					// Use Mustache to render the metadata template with the variables
+					metadata = Mustache.render(
+						this.settings.metadataTemplate,
+						templateContext,
+					);
+				}
+
 				const escapedData = {
 					title: data.title.replace(/"/g, '\\"'),
 					image: data.image,
 					description: data.description.replace(/"/g, '\\"'),
 					url: data.url,
+					metadata: metadata,
 				};
 				const embed = Mustache.render(template, escapedData) + '\n';
 				if (this.settings.delay > 0) {

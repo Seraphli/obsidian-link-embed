@@ -3,6 +3,7 @@ title: \"{{{title}}}\"
 image: \"{{{image}}}\"
 description: \"{{{description}}}\"
 url: \"{{{url}}}\"
+{{{metadata}}}
 \`\`\``;
 
 export const HTMLTemplate = `<div
@@ -111,4 +112,7 @@ export class EmbedInfo {
 	image: string;
 	description: string;
 	url: string;
+	createdby?: string;
+	parser?: string;
+	date?: string;
 }
