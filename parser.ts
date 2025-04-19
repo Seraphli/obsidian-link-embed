@@ -169,7 +169,13 @@ class LocalParser extends Parser {
 	getImage(doc: Document, url: URL): string {
 		let element = doc.querySelector('head meta[property="og:image"]');
 		if (element instanceof HTMLMetaElement) {
-			return element.content;
+			// Handle relative URLs by resolving against the base URL
+			try {
+				return new URL(element.content, url.origin).href;
+			} catch (e) {
+				// If URL construction fails, return the original content
+				return element.content;
+			}
 		}
 
 		let selectors = [

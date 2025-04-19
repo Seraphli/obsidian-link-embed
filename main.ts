@@ -216,6 +216,7 @@ export default class ObsidianLinkEmbedPlugin extends Plugin {
 				const dummy = editor.getRange(startCursor, endCursor);
 				if (dummy == dummyEmbed) {
 					editor.replaceRange(embed, startCursor, endCursor);
+					console.log(`Link Embed: parser ${selectedParser} done`);
 				} else {
 					new Notice(
 						`Dummy preview has been deleted or modified. Replacing is cancelled.`,
