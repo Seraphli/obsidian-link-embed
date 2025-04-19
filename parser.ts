@@ -1,7 +1,122 @@
-import { Notice } from 'obsidian';
+import { Notice, TFile, normalizePath } from 'obsidian';
 import Mustache from 'mustache';
 import { requestUrl } from 'obsidian';
+import * as path from 'path';
+import * as crypto from 'crypto';
 const electronPkg = require('electron');
+
+// Utility function to download and save an image to the vault
+export async function downloadImageToVault(
+	url: string,
+	vault: any,
+	folderPath: string,
+): Promise<string> {
+	if (!url || url.startsWith('data:')) {
+		return url; // Return as is if it's already a data URL or empty
+	}
+
+	try {
+		// Create folder if it doesn't exist
+		const normalizedFolderPath = normalizePath(folderPath);
+		try {
+			await vault.createFolder(normalizedFolderPath);
+		} catch (e) {
+			// Folder likely already exists, which is fine
+		}
+
+		// Generate a unique filename based on URL
+		const urlHash = crypto
+			.createHash('md5')
+			.update(url)
+			.digest('hex')
+			.slice(0, 8);
+		const urlObj = new URL(url);
+		let fileName = path.basename(urlObj.pathname);
+
+		// If no extension or filename is empty, use default
+		if (!fileName || fileName === '' || !path.extname(fileName)) {
+			fileName = `image-${urlHash}.png`;
+		} else {
+			// Add hash to filename to prevent collisions
+			const ext = path.extname(fileName);
+			const nameWithoutExt = path.basename(fileName, ext);
+			fileName = `${nameWithoutExt}-${urlHash}${ext}`;
+		}
+
+		// Download the image
+		const response = await requestUrl({ url });
+
+		// Full path to save the file
+		const filePath = normalizePath(`${folderPath}/${fileName}`);
+
+		// Save to vault
+		const buffer = response.arrayBuffer;
+
+		// Check if file already exists
+		const existingFile = vault.getAbstractFileByPath(filePath);
+		if (existingFile) {
+			await vault.delete(existingFile);
+		}
+
+		await vault.createBinary(filePath, buffer);
+
+		return filePath;
+	} catch (error) {
+		console.error('Error downloading image:', error);
+		return url; // Return original URL on error
+	}
+}
+
+// Utility function to convert image file to base64
+export async function imageFileToBase64(
+	vault: any,
+	filePath: string,
+): Promise<string> {
+	try {
+		const file = vault.getAbstractFileByPath(filePath);
+		if (file instanceof TFile) {
+			// Read the file as ArrayBuffer
+			const buffer = await vault.readBinary(file);
+
+			// Convert to base64
+			const base64 = arrayBufferToBase64(buffer);
+
+			// Get the MIME type based on file extension
+			const mimeType = getMimeType(file.extension);
+
+			// Create a data URL
+			return `data:${mimeType};base64,${base64}`;
+		}
+	} catch (error) {
+		console.error('Failed to convert local image to base64:', error);
+	}
+
+	return ''; // Return empty string on error
+}
+
+// Convert ArrayBuffer to base64 string
+function arrayBufferToBase64(buffer: ArrayBuffer): string {
+	let binary = '';
+	const bytes = new Uint8Array(buffer);
+	for (let i = 0; i < bytes.byteLength; i++) {
+		binary += String.fromCharCode(bytes[i]);
+	}
+	return window.btoa(binary);
+}
+
+// Get MIME type from file extension
+function getMimeType(extension: string): string {
+	const mimeTypes: Record<string, string> = {
+		jpg: 'image/jpeg',
+		jpeg: 'image/jpeg',
+		png: 'image/png',
+		gif: 'image/gif',
+		webp: 'image/webp',
+		svg: 'image/svg+xml',
+		// Add more as needed
+	};
+	return mimeTypes[extension.toLowerCase()] || 'image/jpeg';
+}
 
 export abstract class Parser {
 	api: string;
@@ -9,6 +124,9 @@ export abstract class Parser {
 	method: string = 'GET'; // Default method is GET
 	headers: Record<string, string> = {}; // Default headers
 	body: string = ''; // Default body for POST requests
+	vault: any = null; // Reference to the vault
+	saveImagesToVault: boolean = false; // Whether to save images to vault
+	imageFolderPath: string = ''; // Path to save images
 
 	async parseUrl(url: string): Promise<any> {
 		const parseUrl = Mustache.render(this.api, { url });
@@ -44,7 +162,14 @@ export abstract class Parser {
 		if (this.debug) {
 			console.log('Link Embed: raw data', rawData);
 		}
-		return { ...this.process(rawData), url };
+
+		// Use processWithImageHandling if saving images to vault is enabled
+		if (this.saveImagesToVault) {
+			const processedData = await this.processWithImageHandling(rawData);
+			return { ...processedData, url };
+		} else {
+			return { ...this.process(rawData), url };
+		}
 	}
 
 	abstract process(data: any): {
@@ -52,6 +177,36 @@ export abstract class Parser {
 		image: string;
 		description: string;
 	};
+
+	// Process with image handling capability
+	async processWithImageHandling(data: any): Promise<{
+		title: string;
+		image: string;
+		description: string;
+	}> {
+		// Get basic processed data
+		const result = this.process(data);
+
+		// If saveImagesToVault is enabled and image exists and vault is available
+		if (this.saveImagesToVault && result.image && this.vault) {
+			try {
+				// Save image to vault
+				const localPath = await downloadImageToVault(
+					result.image,
+					this.vault,
+					this.imageFolderPath,
+				);
+
+				// Replace the image URL with local path
+				result.image = localPath;
+			} catch (error) {
+				console.error('Failed to save image to vault:', error);
+				// Keep original URL on failure
+			}
+		}
+
+		return result;
+	}
 }
 
 class LinkPreviewParser extends Parser {
@@ -287,21 +442,41 @@ class LocalParser extends Parser {
 		let image = this.getImage(doc, uRL);
 		let description = this.getDescription(doc);
 
-		return { ...this.process({ title, image, description }), url };
+		// Use processWithImageHandling if saving images to vault is enabled
+		if (this.saveImagesToVault) {
+			const processedData = await this.processWithImageHandling({
+				title,
+				image,
+				description,
+			});
+			return { ...processedData, url };
+		} else {
+			return { ...this.process({ title, image, description }), url };
+		}
 	}
 }
 
 // Parser factory function to create parser instances on demand
-export function createParser(parserType: string, settings: any): Parser {
+export function createParser(
+	parserType: string,
+	settings: any,
+	vault: any = null,
+): Parser {
+	let parser: Parser;
+
 	switch (parserType) {
 		case 'jsonlink':
-			return new JSONLinkParser();
+			parser = new JSONLinkParser();
+			break;
 		case 'microlink':
-			return new MicroLinkParser();
+			parser = new MicroLinkParser();
+			break;
 		case 'iframely':
-			return new IframelyParser();
+			parser = new IframelyParser();
+			break;
 		case 'local':
-			return new LocalParser();
+			parser = new LocalParser();
+			break;
 		case 'linkpreview':
 			const apiKey = settings.linkpreviewApiKey;
 			if (!apiKey) {
@@ -311,10 +486,18 @@ export function createParser(parserType: string, settings: any): Parser {
 				);
 				throw new Error('LinkPreview API key is not set');
 			}
-			return new LinkPreviewParser(apiKey);
+			parser = new LinkPreviewParser(apiKey);
+			break;
 		default:
 			throw new Error(`Unknown parser type: ${parserType}`);
 	}
+
+	// Setup image saving options
+	parser.vault = vault;
+	parser.saveImagesToVault = settings.saveImagesToVault || false;
+	parser.imageFolderPath = settings.imageFolderPath || 'link-embed-images';
+
+	return parser;
 }
 
 export const parseOptions: Record<string, string> = {

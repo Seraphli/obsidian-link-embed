@@ -17,6 +17,8 @@ export interface ObsidianLinkEmbedPluginSettings {
 	linkpreviewApiKey: string;
 	metadataTemplate: string;
 	useMetadataTemplate: boolean;
+	saveImagesToVault: boolean;
+	imageFolderPath: string;
 }
 
 export const DEFAULT_SETTINGS: ObsidianLinkEmbedPluginSettings = {
@@ -32,6 +34,8 @@ export const DEFAULT_SETTINGS: ObsidianLinkEmbedPluginSettings = {
 	metadataTemplate:
 		'createdby: "linkembed"\nparser: "{{parser}}"\ndate: "{{date}}"\ncustom_date: "{{#formatDate}}YYYY-MM-DD HH:mm:ss{{/formatDate}}"',
 	useMetadataTemplate: false,
+	saveImagesToVault: false,
+	imageFolderPath: 'link-embed-images',
 };
 
 export class ObsidianLinkEmbedSettingTab extends PluginSettingTab {
@@ -237,6 +241,36 @@ export class ObsidianLinkEmbedSettingTab extends PluginSettingTab {
 						}
 					},
 				);
+			});
+
+		containerEl.createEl('h3', { text: 'Image Settings' });
+
+		new Setting(containerEl)
+			.setName('Save Images to Vault')
+			.setDesc(
+				'When enabled, images from links will be saved to your vault.',
+			)
+			.addToggle((value) => {
+				value
+					.setValue(this.plugin.settings.saveImagesToVault)
+					.onChange((value) => {
+						this.plugin.settings.saveImagesToVault = value;
+						this.plugin.saveSettings();
+					});
+			});
+
+		new Setting(containerEl)
+			.setName('Image Folder Path')
+			.setDesc(
+				"Folder in your vault where images will be saved. The folder will be created if it doesn't exist.",
+			)
+			.addText((value) => {
+				value
+					.setValue(this.plugin.settings.imageFolderPath)
+					.onChange((value) => {
+						this.plugin.settings.imageFolderPath = value;
+						this.plugin.saveSettings();
+					});
 			});
 
 		containerEl.createEl('h3', { text: 'Provider Settings' });

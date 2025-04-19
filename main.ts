@@ -8,7 +8,12 @@ import {
 	parseYaml,
 } from 'obsidian';
 import Mustache from 'mustache';
-import { createParser, parseOptions } from './parser';
+import {
+	createParser,
+	parseOptions,
+	imageFileToBase64,
+	downloadImageToVault,
+} from './parser';
 import {
 	HTMLTemplate,
 	REGEX,
@@ -88,6 +93,27 @@ export default class ObsidianLinkEmbedPlugin extends Plugin {
 				]);
 			},
 		});
+
+		// Command to test downloading an image to the vault
+		this.addCommand({
+			id: 'test-save-image',
+			name: 'Test: Save image to vault',
+			editorCallback: async (editor: Editor) => {
+				let selected = await this.getText(editor);
+				if (!selected.text) {
+					new Notice('Please select an image URL first');
+					return;
+				}
+
+				if (!ObsidianLinkEmbedPlugin.isUrl(selected.text)) {
+					new Notice('Selected text is not a valid URL');
+					return;
+				}
+
+				// Try to download the image
+				await this.testImageDownload(selected.text);
+			},
+		});
 		// Add commands for each parser type
 		Object.keys(parseOptions).forEach((name) => {
 			this.addCommand({
@@ -103,30 +129,61 @@ export default class ObsidianLinkEmbedPlugin extends Plugin {
 			});
 		});
 
-		this.registerMarkdownCodeBlockProcessor('embed', (source, el, ctx) => {
-			const info = parseYaml(
-				source.replace(/^\s+|\s+$/gm, ''),
-			) as EmbedInfo;
-			const html = HTMLTemplate.replace(/{{title}}/gm, info.title)
-				.replace(/{{{image}}}/gm, info.image)
-				.replace(/{{description}}/gm, info.description)
-				.replace(/{{{url}}}/gm, info.url);
-			let parser = new DOMParser();
-			var doc = parser.parseFromString(html, 'text/html');
-			el.replaceWith(doc.body.firstChild);
+		this.registerMarkdownCodeBlockProcessor(
+			'embed',
+			async (source, el, ctx) => {
+				const info = parseYaml(
+					source.replace(/^\s+|\s+$/gm, ''),
+				) as EmbedInfo;
 
-			// Log metadata information if debugging is enabled
-			if (
-				this.settings.debug &&
-				(info.createdby || info.parser || info.date)
-			) {
-				console.log('Link Embed Metadata:', {
-					createdby: info.createdby || 'unknown',
-					parser: info.parser || 'unknown',
-					date: info.date || 'unknown',
-				});
-			}
-		});
+				// Process image path if it's a local file path
+				let imageUrl = info.image;
+				if (
+					imageUrl &&
+					!imageUrl.startsWith('http') &&
+					!imageUrl.startsWith('data:')
+				) {
+					try {
+						// Convert local image path to base64 data URL
+						const base64Image = await imageFileToBase64(
+							this.app.vault,
+							imageUrl,
+						);
+						if (base64Image) {
+							imageUrl = base64Image;
+						}
+					} catch (error) {
+						console.error(
+							'Failed to convert local image to base64:',
+							error,
+						);
+						// Keep original path on failure
+					}
+				}
+
+				// Use the processed image URL
+				const html = HTMLTemplate.replace(/{{title}}/gm, info.title)
+					.replace(/{{{image}}}/gm, imageUrl)
+					.replace(/{{description}}/gm, info.description)
+					.replace(/{{{url}}}/gm, info.url);
+
+				let parser = new DOMParser();
+				var doc = parser.parseFromString(html, 'text/html');
+				el.replaceWith(doc.body.firstChild);
+
+				// Log metadata information if debugging is enabled
+				if (
+					this.settings.debug &&
+					(info.createdby || info.parser || info.date)
+				) {
+					console.log('Link Embed Metadata:', {
+						createdby: info.createdby || 'unknown',
+						parser: info.parser || 'unknown',
+						date: info.date || 'unknown',
+					});
+				}
+			},
+		);
 
 		this.addSettingTab(new ObsidianLinkEmbedSettingTab(this.app, this));
 	}
@@ -205,7 +262,11 @@ export default class ObsidianLinkEmbedPlugin extends Plugin {
 			}
 			try {
 				// Create parser instance on demand
-				const parser = createParser(selectedParser, this.settings);
+				const parser = createParser(
+					selectedParser,
+					this.settings,
+					this.app.vault,
+				);
 				parser.debug = this.settings.debug;
 
 				const data = await parser.parse(url);
@@ -342,5 +403,31 @@ export default class ObsidianLinkEmbedPlugin extends Plugin {
 		}
 		const errorMessage = error?.message || 'Failed to fetch data';
 		new Notice(`Error: ${errorMessage}`);
+	}
+
+	// Test function for downloading an image to the vault (for debugging)
+	async testImageDownload(imageUrl: string): Promise<string> {
+		if (!this.settings.saveImagesToVault) {
+			new Notice(
+				'Image saving is disabled. Enable it in settings first.',
+			);
+			return imageUrl;
+		}
+
+		try {
+			const localPath = await downloadImageToVault(
+				imageUrl,
+				this.app.vault,
+				this.settings.imageFolderPath,
+			);
+
+			new Notice(`Image saved to ${localPath}`);
+
+			return localPath;
+		} catch (error) {
+			console.error('Failed to save image to vault:', error);
+			new Notice(`Failed to save image: ${error.message}`);
+			return imageUrl;
+		}
 	}
 }
