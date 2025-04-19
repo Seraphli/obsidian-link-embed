@@ -14,6 +14,7 @@ export interface ObsidianLinkEmbedPluginSettings {
 	inPlace: boolean;
 	debug: boolean;
 	delay: number;
+	linkpreviewApiKey: string;
 }
 
 export const DEFAULT_SETTINGS: ObsidianLinkEmbedPluginSettings = {
@@ -25,6 +26,7 @@ export const DEFAULT_SETTINGS: ObsidianLinkEmbedPluginSettings = {
 	inPlace: false,
 	debug: false,
 	delay: 0,
+	linkpreviewApiKey: '',
 };
 
 export class ObsidianLinkEmbedSettingTab extends PluginSettingTab {
@@ -133,7 +135,9 @@ export class ObsidianLinkEmbedSettingTab extends PluginSettingTab {
 						let bReplace = false;
 						for (let elem of elems) {
 							let description = elem[5] || '';
-							description = description.replace(/\n/g, ' ').replace(/\\/g, '\\\\');
+							description = description
+								.replace(/\n/g, ' ')
+								.replace(/\\/g, '\\\\');
 							description = he.unescape(description);
 							let title = he.unescape(elem[4] || '');
 							const origin = elem[0];
@@ -176,6 +180,20 @@ export class ObsidianLinkEmbedSettingTab extends PluginSettingTab {
 					}
 					new Notice(`Conversion End`);
 				});
+			});
+
+		containerEl.createEl('h3', { text: 'Provider Settings' });
+
+		new Setting(containerEl)
+			.setName('LinkPreview API Key')
+			.setDesc('Enter your API key for the LinkPreview provider.')
+			.addText((value) => {
+				value
+					.setValue(this.plugin.settings.linkpreviewApiKey)
+					.onChange((value) => {
+						this.plugin.settings.linkpreviewApiKey = value;
+						this.plugin.saveSettings();
+					});
 			});
 
 		containerEl.createEl('h3', { text: 'Dev Option' });

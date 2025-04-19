@@ -8,7 +8,7 @@ import {
 	parseYaml,
 } from 'obsidian';
 import Mustache from 'mustache';
-import { parsers } from './parser';
+import { createParser, parseOptions } from './parser';
 import {
 	HTMLTemplate,
 	REGEX,
@@ -88,10 +88,11 @@ export default class ObsidianLinkEmbedPlugin extends Plugin {
 				]);
 			},
 		});
-		Object.keys(parsers).forEach((name) => {
+		// Add commands for each parser type
+		Object.keys(parseOptions).forEach((name) => {
 			this.addCommand({
 				id: `embed-link-${name}`,
-				name: `Embed link with ${name}`,
+				name: `Embed link with ${parseOptions[name]}`,
 				editorCallback: async (editor: Editor) => {
 					let selected = await this.getText(editor);
 					if (!this.checkUrlValid(selected)) {
@@ -190,9 +191,11 @@ export default class ObsidianLinkEmbedPlugin extends Plugin {
 			if (this.settings.debug) {
 				console.log('Link Embed: parser', selectedParser);
 			}
-			const parser = parsers[selectedParser];
-			parser.debug = this.settings.debug;
 			try {
+				// Create parser instance on demand
+				const parser = createParser(selectedParser, this.settings);
+				parser.debug = this.settings.debug;
+
 				const data = await parser.parse(url);
 				if (this.settings.debug) {
 					console.log('Link Embed: meta data', data);
@@ -223,7 +226,11 @@ export default class ObsidianLinkEmbedPlugin extends Plugin {
 				console.log('Link Embed: error', error);
 				idx += 1;
 				if (idx === selectedParsers.length) {
-					this.errorNotice();
+					this.errorNotice(
+						error instanceof Error
+							? error
+							: new Error(String(error)),
+					);
 				}
 			}
 		}
@@ -234,10 +241,11 @@ export default class ObsidianLinkEmbedPlugin extends Plugin {
 		return urlRegex.test(text);
 	}
 
-	errorNotice() {
+	errorNotice(error?: Error) {
 		if (this.settings.debug) {
-			console.log('Link Embed: Failed to fetch data');
+			console.log('Link Embed: Failed to fetch data', error);
 		}
-		new Notice(`Failed to fetch data`);
+		const errorMessage = error?.message || 'Failed to fetch data';
+		new Notice(`Error: ${errorMessage}`);
 	}
 }
