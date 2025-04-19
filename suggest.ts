@@ -9,6 +9,7 @@ import {
 	TFile,
 } from 'obsidian';
 import type ObsidianLinkEmbedPlugin from 'main';
+import { createParser } from './parser';
 
 interface IDateCompletion {
 	choice: string;
@@ -27,9 +28,16 @@ export default class EmbedSuggest extends EditorSuggest<IDateCompletion> {
 	getSuggestions(context: EditorSuggestContext): IDateCompletion[] {
 		// catch-all if there are no matches
 		if (this.plugin.settings.rmDismiss) {
-			return [{ choice: 'Create Embed' }];
+			return [
+				{ choice: 'Create Embed' },
+				{ choice: 'Create Markdown Link' },
+			];
 		}
-		return [{ choice: 'Dismiss' }, { choice: 'Create Embed' }];
+		return [
+			{ choice: 'Dismiss' },
+			{ choice: 'Create Embed' },
+			{ choice: 'Create Markdown Link' },
+		];
 	}
 
 	renderSuggestion(suggestion: IDateCompletion, el: HTMLElement): void {
@@ -58,15 +66,81 @@ export default class EmbedSuggest extends EditorSuggest<IDateCompletion> {
 				[this.plugin.settings.primary, this.plugin.settings.backup],
 				true,
 			);
+		} else if (suggestion.choice == 'Create Markdown Link') {
+			// Convert URL to [title](link) format
+			this.convertToMarkdownLink();
 		}
 		this.close();
+	}
+
+	private async convertToMarkdownLink(): Promise<void> {
+		const url = this.plugin.pasteInfo.text;
+		const cursor = this.editor.getCursor();
+		const boundary = {
+			start: {
+				line: cursor.line,
+				ch: cursor.ch - url.length,
+			},
+			end: cursor,
+		};
+
+		try {
+			// Create parser instance on demand
+			const parser = createParser(
+				this.plugin.settings.primary,
+				this.plugin.settings,
+				this.plugin.app.vault,
+			);
+			parser.debug = this.plugin.settings.debug;
+
+			// Try to fetch only the title for the link
+			const data = await parser.parse(url);
+
+			if (data.title) {
+				// Replace the URL with [title](url) format
+				const mdLink = `[${data.title}](${url})`;
+				this.editor.replaceRange(mdLink, boundary.start, boundary.end);
+			}
+			// If title is empty, keep the URL as is (do nothing)
+		} catch (error) {
+			// If primary parser fails, try the backup parser
+			try {
+				const backupParser = createParser(
+					this.plugin.settings.backup,
+					this.plugin.settings,
+					this.plugin.app.vault,
+				);
+				backupParser.debug = this.plugin.settings.debug;
+
+				const backupData = await backupParser.parse(url);
+				if (backupData.title) {
+					// Replace the URL with [title](url) format
+					const mdLink = `[${backupData.title}](${url})`;
+					this.editor.replaceRange(
+						mdLink,
+						boundary.start,
+						boundary.end,
+					);
+				}
+				// If title is empty, keep the URL as is (do nothing)
+			} catch (backupError) {
+				// Both parsers failed, keep the URL as is (do nothing)
+				if (this.plugin.settings.debug) {
+					console.log(
+						'Link Embed: Failed to fetch title using both parsers',
+						error,
+						backupError,
+					);
+				}
+			}
+		}
 	}
 
 	onTrigger(
 		cursor: EditorPosition,
 		editor: Editor,
 		file: TFile,
-	): EditorSuggestTriggerInfo {
+	): EditorSuggestTriggerInfo | null {
 		if (!this.plugin.pasteInfo.trigger) {
 			return null;
 		}
@@ -74,8 +148,8 @@ export default class EmbedSuggest extends EditorSuggest<IDateCompletion> {
 		this.editor = editor;
 		this.cursor = cursor;
 		if (this.plugin.settings.autoEmbedWhenEmpty) {
-			const cursor = this.editor.getCursor();
-			if (cursor.ch - this.plugin.pasteInfo.text.length == 0) {
+			const currentCursor = this.editor.getCursor();
+			if (currentCursor.ch - this.plugin.pasteInfo.text.length == 0) {
 				this.plugin.embedUrl(
 					this.editor,
 					{
@@ -83,12 +157,12 @@ export default class EmbedSuggest extends EditorSuggest<IDateCompletion> {
 						text: this.plugin.pasteInfo.text,
 						boundary: {
 							start: {
-								line: cursor.line,
+								line: currentCursor.line,
 								ch:
-									cursor.ch -
+									currentCursor.ch -
 									this.plugin.pasteInfo.text.length,
 							},
-							end: cursor,
+							end: currentCursor,
 						},
 					},
 					[this.plugin.settings.primary, this.plugin.settings.backup],
