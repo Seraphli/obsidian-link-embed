@@ -2,7 +2,8 @@ export const MarkdownTemplate = `\`\`\`embed
 title: \"{{{title}}}\"
 image: \"{{{image}}}\"
 description: \"{{{description}}}\"
-url: \"{{{url}}}\"{{#metadata}}
+url: \"{{{url}}}\"{{#aspectRatio}}
+aspectRatio: "{{aspectRatio}}"{{/aspectRatio}}{{#metadata}}
 {{{metadata}}}{{/metadata}}
 \`\`\``;
 
@@ -14,10 +15,10 @@ export const HTMLTemplate = `<div
     box-shadow: rgba(0, 0, 0, 0.06) 0px 1px 3px;
   "
 >
-  <div class="w __if _lc _sm _od _alsd _alcd _lh14 _xm _xi _ts _dm">
+  <div class="w _lc _sm _od _lh14 _ts">
     <div class="wf">
-      <div class="wc">
-        <div class="e" style="padding-bottom: 100%">
+      <div class="wc" style="width: {{calculatedWidth}}px; min-width: {{calculatedWidth}}px;">
+        <div class="e">
           <div class="em">
             <a
               href="{{{url}}}"
@@ -27,6 +28,8 @@ export const HTMLTemplate = `<div
               class="c"
               style="
                 background-image: url(\'{{{image}}}\');
+                background-size: {{#isWideImage}}contain{{/isWideImage}}{{^isWideImage}}cover{{/isWideImage}};
+                background-position: center;
               "
             ></a>
           </div>
@@ -115,4 +118,5 @@ export class EmbedInfo {
 	createdby?: string;
 	parser?: string;
 	date?: string;
+	aspectRatio?: number; // Width/height ratio of the image
 }

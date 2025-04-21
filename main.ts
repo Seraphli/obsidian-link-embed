@@ -13,6 +13,7 @@ import {
 	parseOptions,
 	imageFileToBase64,
 	downloadImageToVault,
+	getImageDimensions,
 } from './parser';
 import {
 	HTMLTemplate,
@@ -154,18 +155,67 @@ export default class ObsidianLinkEmbedPlugin extends Plugin {
 						}
 					} catch (error) {
 						console.error(
-							'Failed to convert local image to base64:',
+							'[Link Embed] Failed to convert local image to base64:',
 							error,
 						);
 						// Keep original path on failure
 					}
 				}
 
-				// Use the processed image URL
-				const html = HTMLTemplate.replace(/{{title}}/gm, info.title)
-					.replace(/{{{image}}}/gm, imageUrl)
-					.replace(/{{description}}/gm, info.description)
-					.replace(/{{{url}}}/gm, info.url);
+				// Calculate aspect ratio if not present but feature is enabled
+				let aspectRatio = info.aspectRatio;
+				if (
+					this.settings.respectImageAspectRatio &&
+					!aspectRatio &&
+					imageUrl
+				) {
+					try {
+						const dimensions = await getImageDimensions(imageUrl);
+						if (dimensions) {
+							aspectRatio = dimensions.aspectRatio;
+							if (this.settings.debug) {
+								console.log(
+									'[Link Embed] Calculated image aspect ratio:',
+									aspectRatio,
+								);
+							}
+						}
+					} catch (error) {
+						console.error(
+							`[Link Embed] Error calculating dynamic aspect ratio for ${imageUrl.substring(
+								0,
+								150,
+							)}${imageUrl.length > 150 ? '...' : ''}:`,
+							error,
+						);
+					}
+				}
+
+				// Calculate width based on aspect ratio
+				const baseWidth = this.settings.defaultImageWidth; // Use width from settings
+				const calculatedWidth =
+					aspectRatio && aspectRatio < 100
+						? Math.min(
+								this.settings.maxImageWidth,
+								Math.round((baseWidth * 100) / aspectRatio),
+						  ) // Use max width from settings
+						: baseWidth;
+
+				// Use the processed image URL and any aspect ratio information
+				const templateData = {
+					title: info.title,
+					image: imageUrl,
+					description: info.description,
+					url: info.url,
+					aspectRatio: this.settings.respectImageAspectRatio
+						? aspectRatio
+						: 100,
+					// Add flag to determine if this is a wide image (width > height)
+					isWideImage: aspectRatio < 100,
+					calculatedWidth: calculatedWidth,
+				};
+
+				const html = Mustache.render(HTMLTemplate, templateData);
 
 				let parser = new DOMParser();
 				var doc = parser.parseFromString(html, 'text/html');
@@ -176,7 +226,7 @@ export default class ObsidianLinkEmbedPlugin extends Plugin {
 					this.settings.debug &&
 					(info.createdby || info.parser || info.date)
 				) {
-					console.log('Link Embed Metadata:', {
+					console.log('[Link Embed] Metadata:', {
 						createdby: info.createdby || 'unknown',
 						parser: info.parser || 'unknown',
 						date: info.date || 'unknown',
@@ -258,7 +308,7 @@ export default class ObsidianLinkEmbedPlugin extends Plugin {
 		while (idx < selectedParsers.length) {
 			const selectedParser = selectedParsers[idx];
 			if (this.settings.debug) {
-				console.log('Link Embed: parser', selectedParser);
+				console.log('[Link Embed] Parser:', selectedParser);
 			}
 			try {
 				// Create parser instance on demand
@@ -271,7 +321,7 @@ export default class ObsidianLinkEmbedPlugin extends Plugin {
 
 				const data = await parser.parse(url);
 				if (this.settings.debug) {
-					console.log('Link Embed: meta data', data);
+					console.log('[Link Embed] Meta data:', data);
 				}
 
 				// Generate metadata if enabled in settings
@@ -340,7 +390,10 @@ export default class ObsidianLinkEmbedPlugin extends Plugin {
 											),
 										);
 								} catch (e) {
-									console.log('Error formatting date:', e);
+									console.log(
+										'[Link Embed] Error formatting date:',
+										e,
+									);
 									return now.toISOString().split('T')[0];
 								}
 							};
@@ -354,13 +407,33 @@ export default class ObsidianLinkEmbedPlugin extends Plugin {
 					);
 				}
 
-const escapedData = {
-title: data.title.replace(/"/g, '\\"'),
-image: data.image,
-description: data.description.replace(/"/g, '\\"'),
-url: data.url,
-metadata: metadata || false, // Ensure empty string becomes falsy for Mustache conditional
-};
+				// Calculate width based on aspect ratio
+				const baseWidth = this.settings.defaultImageWidth; // Use width from settings
+				const calculatedWidth =
+					data.aspectRatio && data.aspectRatio < 100
+						? Math.min(
+								this.settings.maxImageWidth,
+								Math.round(
+									(baseWidth * 100) / data.aspectRatio,
+								),
+						  ) // Use max width from settings
+						: baseWidth;
+
+				const escapedData = {
+					title: data.title.replace(/"/g, '\\"'),
+					image: data.image,
+					description: data.description.replace(/"/g, '\\"'),
+					url: data.url,
+					metadata: metadata || false, // Ensure empty string becomes falsy for Mustache conditional
+					aspectRatio: this.settings.respectImageAspectRatio
+						? data.aspectRatio
+						: 100,
+					// Add flag to determine if this is a wide image (width > height)
+					isWideImage: data.aspectRatio
+						? data.aspectRatio < 100
+						: false,
+					calculatedWidth: calculatedWidth,
+				};
 				const embed = Mustache.render(template, escapedData) + '\n';
 				if (this.settings.delay > 0) {
 					await new Promise((f) =>
@@ -371,7 +444,7 @@ metadata: metadata || false, // Ensure empty string becomes falsy for Mustache c
 				const dummy = editor.getRange(startCursor, endCursor);
 				if (dummy == dummyEmbed) {
 					editor.replaceRange(embed, startCursor, endCursor);
-					console.log(`Link Embed: parser ${selectedParser} done`);
+					console.log(`[Link Embed] Parser ${selectedParser} done`);
 				} else {
 					new Notice(
 						`Dummy preview has been deleted or modified. Replacing is cancelled.`,
@@ -379,7 +452,7 @@ metadata: metadata || false, // Ensure empty string becomes falsy for Mustache c
 				}
 				break;
 			} catch (error) {
-				console.log('Link Embed: error', error);
+				console.log('[Link Embed] Error:', error);
 				idx += 1;
 				if (idx === selectedParsers.length) {
 					this.errorNotice(
@@ -399,7 +472,7 @@ metadata: metadata || false, // Ensure empty string becomes falsy for Mustache c
 
 	errorNotice(error?: Error) {
 		if (this.settings.debug) {
-			console.log('Link Embed: Failed to fetch data', error);
+			console.log('[Link Embed] Failed to fetch data:', error);
 		}
 		const errorMessage = error?.message || 'Failed to fetch data';
 		new Notice(`Error: ${errorMessage}`);
@@ -425,7 +498,7 @@ metadata: metadata || false, // Ensure empty string becomes falsy for Mustache c
 
 			return localPath;
 		} catch (error) {
-			console.error('Failed to save image to vault:', error);
+			console.error('[Link Embed] Failed to save image to vault:', error);
 			new Notice(`Failed to save image: ${error.message}`);
 			return imageUrl;
 		}

@@ -270,7 +270,6 @@
 }
 ._lc:not(._ap) .e {
 	height: 100%;
-	padding-bottom: 0;
 }
 .em {
 	position: absolute;
@@ -294,9 +293,6 @@
 }
 .w {
 	background-color: inherit;
-}
-.e {
-	padding-bottom: 100%;
 }
 .t {
 	line-height: 1.4;

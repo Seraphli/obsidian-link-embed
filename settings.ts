@@ -19,6 +19,9 @@ export interface ObsidianLinkEmbedPluginSettings {
 	useMetadataTemplate: boolean;
 	saveImagesToVault: boolean;
 	imageFolderPath: string;
+	respectImageAspectRatio: boolean;
+	defaultImageWidth: number;
+	maxImageWidth: number;
 }
 
 export const DEFAULT_SETTINGS: ObsidianLinkEmbedPluginSettings = {
@@ -36,6 +39,9 @@ export const DEFAULT_SETTINGS: ObsidianLinkEmbedPluginSettings = {
 	useMetadataTemplate: false,
 	saveImagesToVault: false,
 	imageFolderPath: 'link-embed-images',
+	respectImageAspectRatio: true,
+	defaultImageWidth: 160,
+	maxImageWidth: 320,
 };
 
 export class ObsidianLinkEmbedSettingTab extends PluginSettingTab {
@@ -162,7 +168,7 @@ export class ObsidianLinkEmbedSettingTab extends PluginSettingTab {
 							);
 							if (this.plugin.settings.debug) {
 								console.log(
-									`Link Embed: Replace\nOrigin\n${origin}\nNew\n${embed}\nBefore\n${content}\nAfter\n${content
+									`[Link Embed] Replace:\nOrigin\n${origin}\nNew\n${embed}\nBefore\n${content}\nAfter\n${content
 										.split(origin)
 										.join(embed)}`,
 								);
@@ -181,7 +187,7 @@ export class ObsidianLinkEmbedSettingTab extends PluginSettingTab {
 						) {
 							new Notice(`Conversion Fail on ${file.path}`);
 							if (this.plugin.settings.debug) {
-								console.log('Link Embed: Convert', content);
+								console.log('[Link Embed] Convert:', content);
 							}
 						} else {
 							await this.app.vault.modify(file, content);
@@ -234,7 +240,7 @@ export class ObsidianLinkEmbedSettingTab extends PluginSettingTab {
 							// Invalid YAML format, don't save
 							if (this.plugin.settings.debug) {
 								console.log(
-									'Link Embed: Invalid YAML format in metadata template',
+									'[Link Embed] Invalid YAML format in metadata template:',
 									e,
 								);
 							}
@@ -244,6 +250,20 @@ export class ObsidianLinkEmbedSettingTab extends PluginSettingTab {
 			});
 
 		containerEl.createEl('h3', { text: 'Image Settings' });
+
+		new Setting(containerEl)
+			.setName('Respect Image Aspect Ratio')
+			.setDesc(
+				'When enabled, embedded images will maintain their original aspect ratio instead of being forced into a square shape.',
+			)
+			.addToggle((value) => {
+				value
+					.setValue(this.plugin.settings.respectImageAspectRatio)
+					.onChange((value) => {
+						this.plugin.settings.respectImageAspectRatio = value;
+						this.plugin.saveSettings();
+					});
+			});
 
 		new Setting(containerEl)
 			.setName('Save Images to Vault')
@@ -270,6 +290,38 @@ export class ObsidianLinkEmbedSettingTab extends PluginSettingTab {
 					.onChange((value) => {
 						this.plugin.settings.imageFolderPath = value;
 						this.plugin.saveSettings();
+					});
+			});
+
+		new Setting(containerEl)
+			.setName('Default Image Width')
+			.setDesc(
+				'Default width in pixels for square/tall images. Default is 160.',
+			)
+			.addText((value) => {
+				value
+					.setValue(String(this.plugin.settings.defaultImageWidth))
+					.onChange((value) => {
+						const numValue = Number(value);
+						if (!isNaN(numValue) && numValue > 0) {
+							this.plugin.settings.defaultImageWidth = numValue;
+							this.plugin.saveSettings();
+						}
+					});
+			});
+
+		new Setting(containerEl)
+			.setName('Maximum Image Width')
+			.setDesc('Maximum width in pixels for wide images. Default is 320.')
+			.addText((value) => {
+				value
+					.setValue(String(this.plugin.settings.maxImageWidth))
+					.onChange((value) => {
+						const numValue = Number(value);
+						if (!isNaN(numValue) && numValue > 0) {
+							this.plugin.settings.maxImageWidth = numValue;
+							this.plugin.saveSettings();
+						}
 					});
 			});
 

@@ -5,6 +5,60 @@ import * as path from 'path';
 import * as crypto from 'crypto';
 const electronPkg = require('electron');
 
+// Define interface for parsed link data
+export interface ParsedLinkData {
+	title: string;
+	image: string;
+	description: string;
+	url: string;
+	aspectRatio?: number;
+}
+
+/**
+ * Utility function to get image dimensions and calculate aspect ratio
+ * Works with both regular URLs and base64 data URLs
+ *
+ * @param imageUrl - URL or data URL of the image
+ * @returns Promise with width, height, and aspectRatio or null on error
+ */
+export async function getImageDimensions(
+	imageUrl: string,
+): Promise<{ width: number; height: number; aspectRatio: number } | null> {
+	try {
+		return new Promise((resolve, reject) => {
+			const img = new Image();
+			img.onload = () => {
+				// Calculate aspect ratio as (height/width * 100) for padding-bottom CSS technique
+				const aspectRatio = (img.height / img.width) * 100;
+				resolve({
+					width: img.width,
+					height: img.height,
+					aspectRatio: aspectRatio,
+				});
+			};
+			img.onerror = () => {
+				reject(
+					new Error(
+						`Failed to load image: ${imageUrl.substring(0, 150)}${
+							imageUrl.length > 150 ? '...' : ''
+						}`,
+					),
+				);
+			};
+			img.src = imageUrl;
+		});
+	} catch (error) {
+		console.error(
+			`[Link Embed] Error getting image dimensions for ${imageUrl.substring(
+				0,
+				150,
+			)}${imageUrl.length > 150 ? '...' : ''}:`,
+			error,
+		);
+		return null;
+	}
+}
+
 // Utility function to download and save an image to the vault
 export async function downloadImageToVault(
 	url: string,
@@ -62,7 +116,7 @@ export async function downloadImageToVault(
 
 		return filePath;
 	} catch (error) {
-		console.error('Error downloading image:', error);
+		console.error('[Link Embed] Error downloading image:', error);
 		return url; // Return original URL on error
 	}
 }
@@ -88,7 +142,10 @@ export async function imageFileToBase64(
 			return `data:${mimeType};base64,${base64}`;
 		}
 	} catch (error) {
-		console.error('Failed to convert local image to base64:', error);
+		console.error(
+			'[Link Embed] Failed to convert local image to base64:',
+			error,
+		);
 	}
 
 	return ''; // Return empty string on error
@@ -147,52 +204,30 @@ export abstract class Parser {
 			const response = await requestUrl(requestOptions);
 			return response.json;
 		} catch (error) {
-			console.error('Error fetching URL:', error);
+			console.error('[Link Embed] Error fetching URL:', error);
 			throw error;
 		}
 	}
 
-	async parse(url: string): Promise<{
-		title: string;
-		image: string;
-		description: string;
-		url: string;
-	}> {
-		const rawData = await this.parseUrl(url);
-		if (this.debug) {
-			console.log('Link Embed: raw data', rawData);
-		}
+	/**
+	 * Common method to handle image processing and aspect ratio calculation
+	 * @param processedData The data with basic title, image, and description
+	 * @param url The URL being processed
+	 * @returns ParsedLinkData with image path and aspect ratio
+	 */
+	async handleImageProcessing(
+		processedData: { title: string; image: string; description: string },
+		url: string,
+	): Promise<ParsedLinkData> {
+		// 1. Create the result object with URL
+		const result: ParsedLinkData = { ...processedData, url };
 
-		// Use processWithImageHandling if saving images to vault is enabled
-		if (this.saveImagesToVault) {
-			const processedData = await this.processWithImageHandling(rawData);
-			return { ...processedData, url };
-		} else {
-			return { ...this.process(rawData), url };
-		}
-	}
-
-	abstract process(data: any): {
-		title: string;
-		image: string;
-		description: string;
-	};
-
-	// Process with image handling capability
-	async processWithImageHandling(data: any): Promise<{
-		title: string;
-		image: string;
-		description: string;
-	}> {
-		// Get basic processed data
-		const result = this.process(data);
-
-		// If saveImagesToVault is enabled and image exists and vault is available
-		if (this.saveImagesToVault && result.image && this.vault) {
+		// 2. Handle image storage to vault if needed
+		if (this.saveImagesToVault && processedData.image && this.vault) {
 			try {
 				// Save image to vault
 				const localPath = await downloadImageToVault(
-					result.image,
+					processedData.image,
 					this.vault,
 					this.imageFolderPath,
 				);
@@ -200,13 +235,56 @@ export abstract class Parser {
 				// Replace the image URL with local path
 				result.image = localPath;
 			} catch (error) {
-				console.error('Failed to save image to vault:', error);
+				console.error(
+					'[Link Embed] Failed to save image to vault:',
+					error,
+				);
 				// Keep original URL on failure
+			}
+		}
+
+		// 3. Calculate aspect ratio if image is available
+		if (result.image && result.image.length > 0) {
+			try {
+				const dimensions = await getImageDimensions(result.image);
+				if (dimensions) {
+					result.aspectRatio = dimensions.aspectRatio;
+					if (this.debug) {
+						console.log(
+							'[Link Embed] Image dimensions:',
+							dimensions,
+						);
+					}
+				}
+			} catch (error) {
+				console.error(
+					'[Link Embed] Error calculating image aspect ratio:',
+					error,
+				);
 			}
 		}
 
 		return result;
 	}
+
+	async parse(url: string): Promise<ParsedLinkData> {
+		const rawData = await this.parseUrl(url);
+		if (this.debug) {
+			console.log('[Link Embed] Raw data:', rawData);
+		}
+
+		// 1. First, process the raw data to extract basic information
+		const processedData = this.process(rawData);
+
+		// 2. Handle image processing and aspect ratio with the common method
+		return await this.handleImageProcessing(processedData, url);
+	}
+
+	abstract process(data: any): {
+		title: string;
+		image: string;
+		description: string;
+	};
 }
 
 class LinkPreviewParser extends Parser {
@@ -417,7 +495,7 @@ class LocalParser extends Parser {
 			return doc;
 		} catch (ex) {
 			if (this.debug) {
-				console.log('Failed to use electron: ', ex);
+				console.log('[Link Embed] Failed to use electron: ', ex);
 			}
 			if (window) {
 				window.close();
@@ -426,12 +504,7 @@ class LocalParser extends Parser {
 		}
 	}
 
-	async parse(url: string): Promise<{
-		title: string;
-		image: string;
-		description: string;
-		url: string;
-	}> {
+	async parse(url: string): Promise<ParsedLinkData> {
 		let html =
 			(await this.getHtmlByElectron(url)) ||
 			(await this.getHtmlByRequest(url));
@@ -441,23 +514,17 @@ class LocalParser extends Parser {
 		// get base url from document
 		let uRL = new URL(url);
 		if (this.debug) {
-			console.log('Link Embed: doc', doc);
+			console.log('[Link Embed] Doc:', doc);
 		}
 		let title = this.getTitle(doc, uRL);
 		let image = this.getImage(doc, uRL);
 		let description = this.getDescription(doc);
 
-		// Use processWithImageHandling if saving images to vault is enabled
-		if (this.saveImagesToVault) {
-			const processedData = await this.processWithImageHandling({
-				title,
-				image,
-				description,
-			});
-			return { ...processedData, url };
-		} else {
-			return { ...this.process({ title, image, description }), url };
-		}
+		// 1. First, process the raw data to extract basic information
+		let processedData = this.process({ title, image, description });
+
+		// 2. Use the common method to handle image processing and aspect ratio
+		return await this.handleImageProcessing(processedData, url);
 	}
 }
 
@@ -485,7 +552,7 @@ export function createParser(
 		case 'linkpreview':
 			const apiKey = settings.linkpreviewApiKey;
 			if (!apiKey) {
-				console.log('Link Embed: LinkPreview API key is not set');
+				console.log('[Link Embed] LinkPreview API key is not set');
 				new Notice(
 					'LinkPreview API key is not set. Please provide an API key in the settings.',
 				);
