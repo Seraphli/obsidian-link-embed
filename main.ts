@@ -182,10 +182,14 @@ export default class ObsidianLinkEmbedPlugin extends Plugin {
 						}
 					} catch (error) {
 						console.error(
-							`[Link Embed] Error calculating dynamic aspect ratio for ${imageUrl.substring(
-								0,
-								150,
-							)}${imageUrl.length > 150 ? '...' : ''}:`,
+							'[Link Embed] Error calculating dynamic aspect ratio at ' +
+								(ctx.sourcePath
+									? ctx.sourcePath +
+									  ':' +
+									  (ctx.getSectionInfo(el)?.lineStart + 1 ||
+											'unknown')
+									: 'unknown location') +
+								':',
 							error,
 						);
 					}
@@ -271,6 +275,13 @@ export default class ObsidianLinkEmbedPlugin extends Plugin {
 		selectedParsers: string[],
 		inPlace: boolean = this.settings.inPlace,
 	) {
+		// Get the current file path and cursor position for error reporting
+		const activeFile = this.app.workspace.getActiveFile();
+		const filePath = activeFile ? activeFile.path : 'unknown';
+		const cursorPos = editor.getCursor();
+		const lineNumber = cursorPos.line + 1; // +1 for human-readable line numbers
+		const locationInfo = `${filePath}:${lineNumber}`;
+
 		let url = selected.text;
 		// replace selection if in place
 		if (selected.can && inPlace) {
@@ -318,6 +329,7 @@ export default class ObsidianLinkEmbedPlugin extends Plugin {
 					this.app.vault,
 				);
 				parser.debug = this.settings.debug;
+				parser.location = locationInfo; // Pass location for error reporting
 
 				const data = await parser.parse(url);
 				if (this.settings.debug) {

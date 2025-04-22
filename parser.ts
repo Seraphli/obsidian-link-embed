@@ -5,6 +5,13 @@ import * as path from 'path';
 import * as crypto from 'crypto';
 const electronPkg = require('electron');
 
+// Cache for storing image dimensions to avoid repeated fetching
+// Using a Map with image URLs as keys and dimension objects as values
+const imageDimensionsCache = new Map<
+	string,
+	{ width: number; height: number; aspectRatio: number }
+>();
+
 // Define interface for parsed link data
 export interface ParsedLinkData {
 	title: string;
@@ -17,6 +24,7 @@ export interface ParsedLinkData {
 /**
  * Utility function to get image dimensions and calculate aspect ratio
  * Works with both regular URLs and base64 data URLs
+ * Uses a cache to avoid fetching the same image dimensions multiple times
  *
  * @param imageUrl - URL or data URL of the image
  * @returns Promise with width, height, and aspectRatio or null on error
@@ -25,16 +33,36 @@ export async function getImageDimensions(
 	imageUrl: string,
 ): Promise<{ width: number; height: number; aspectRatio: number } | null> {
 	try {
+		// Check if dimensions are already in cache
+		if (imageDimensionsCache.has(imageUrl)) {
+			console.log(
+				'[Link Embed] Using cached image dimensions for:',
+				imageUrl.substring(0, 50) + (imageUrl.length > 50 ? '...' : ''),
+			);
+			return imageDimensionsCache.get(imageUrl);
+		}
+
+		// Not in cache, fetch dimensions
 		return new Promise((resolve, reject) => {
 			const img = new Image();
 			img.onload = () => {
 				// Calculate aspect ratio as (height/width * 100) for padding-bottom CSS technique
 				const aspectRatio = (img.height / img.width) * 100;
-				resolve({
+				const dimensions = {
 					width: img.width,
 					height: img.height,
 					aspectRatio: aspectRatio,
-				});
+				};
+
+				// Store in cache for future use
+				imageDimensionsCache.set(imageUrl, dimensions);
+				console.log(
+					'[Link Embed] Cached image dimensions for:',
+					imageUrl.substring(0, 50) +
+						(imageUrl.length > 50 ? '...' : ''),
+				);
+
+				resolve(dimensions);
 			};
 			img.onerror = () => {
 				reject(
@@ -178,6 +206,7 @@ function getMimeType(extension: string): string {
 export abstract class Parser {
 	api: string;
 	debug: boolean;
+	location: string = 'unknown'; // Location for error reporting (file:line)
 	method: string = 'GET'; // Default method is GET
 	headers: Record<string, string> = {}; // Default headers
 	body: string = ''; // Default body for POST requests
@@ -187,7 +216,9 @@ export abstract class Parser {
 
 	async parseUrl(url: string): Promise<any> {
 		const parseUrl = Mustache.render(this.api, { url });
-		new Notice(`Fetching ${url}`);
+		// Store the current parser type to help with error reporting
+		const parserType = this.constructor.name;
+		new Notice(`Fetching ${url} with ${parserType}`);
 
 		try {
 			const requestOptions: any = {
@@ -205,6 +236,10 @@ export abstract class Parser {
 			return response.json;
 		} catch (error) {
 			console.error('[Link Embed] Error fetching URL:', error);
+			// Add parser information and location to the error for better error reporting
+			if (error instanceof Error) {
+				error.message = `[${parserType} at ${this.location}] ${error.message}`;
+			}
 			throw error;
 		}
 	}
@@ -221,6 +256,7 @@ export abstract class Parser {
 	): Promise<ParsedLinkData> {
 		// 1. Create the result object with URL
 		const result: ParsedLinkData = { ...processedData, url };
+		const parserType = this.constructor.name;
 
 		// 2. Handle image storage to vault if needed
 		if (this.saveImagesToVault && processedData.image && this.vault) {
@@ -258,7 +294,7 @@ export abstract class Parser {
 				}
 			} catch (error) {
 				console.error(
-					'[Link Embed] Error calculating image aspect ratio:',
+					`[Link Embed] Error calculating image aspect ratio in ${parserType} at ${this.location}]:`,
 					error,
 				);
 			}
