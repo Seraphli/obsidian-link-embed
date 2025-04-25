@@ -5,12 +5,12 @@ import * as path from 'path';
 import * as crypto from 'crypto';
 const electronPkg = require('electron');
 
-// Cache for storing image dimensions to avoid repeated fetching
-// Using a Map with image URLs as keys and dimension objects as values
-const imageDimensionsCache = new Map<
-	string,
-	{ width: number; height: number; aspectRatio: number }
->();
+// Define image dimensions type
+export type ImageDimensions = {
+	width: number;
+	height: number;
+	aspectRatio: number;
+};
 
 // Define interface for parsed link data
 export interface ParsedLinkData {
@@ -27,19 +27,21 @@ export interface ParsedLinkData {
  * Uses a cache to avoid fetching the same image dimensions multiple times
  *
  * @param imageUrl - URL or data URL of the image
+ * @param cache - Map to store cached image dimensions
  * @returns Promise with width, height, and aspectRatio or null on error
  */
 export async function getImageDimensions(
 	imageUrl: string,
-): Promise<{ width: number; height: number; aspectRatio: number } | null> {
+	cache?: Map<string, ImageDimensions>,
+): Promise<ImageDimensions | null> {
 	try {
 		// Check if dimensions are already in cache
-		if (imageDimensionsCache.has(imageUrl)) {
+		if (cache && cache.has(imageUrl)) {
 			console.log(
 				'[Link Embed] Using cached image dimensions for:',
 				imageUrl.substring(0, 50) + (imageUrl.length > 50 ? '...' : ''),
 			);
-			return imageDimensionsCache.get(imageUrl);
+			return cache.get(imageUrl);
 		}
 
 		// Not in cache, fetch dimensions
@@ -48,19 +50,21 @@ export async function getImageDimensions(
 			img.onload = () => {
 				// Calculate aspect ratio as (height/width * 100) for padding-bottom CSS technique
 				const aspectRatio = (img.height / img.width) * 100;
-				const dimensions = {
+				const dimensions: ImageDimensions = {
 					width: img.width,
 					height: img.height,
 					aspectRatio: aspectRatio,
 				};
 
-				// Store in cache for future use
-				imageDimensionsCache.set(imageUrl, dimensions);
-				console.log(
-					'[Link Embed] Cached image dimensions for:',
-					imageUrl.substring(0, 50) +
-						(imageUrl.length > 50 ? '...' : ''),
-				);
+				// Store in cache for future use if available
+				if (cache) {
+					cache.set(imageUrl, dimensions);
+					console.log(
+						'[Link Embed] Cached image dimensions for:',
+						imageUrl.substring(0, 50) +
+							(imageUrl.length > 50 ? '...' : ''),
+					);
+				}
 
 				resolve(dimensions);
 			};
@@ -282,7 +286,16 @@ export abstract class Parser {
 		// 3. Calculate aspect ratio if image is available
 		if (result.image && result.image.length > 0) {
 			try {
-				const dimensions = await getImageDimensions(result.image);
+				// Get the plugin instance from the main file (if available)
+				const plugin = (window as any).app?.plugins?.plugins[
+					'obsidian-link-embed'
+				];
+				const cache = plugin?.imageDimensionsCache;
+
+				const dimensions = await getImageDimensions(
+					result.image,
+					cache,
+				);
 				if (dimensions) {
 					result.aspectRatio = dimensions.aspectRatio;
 					if (this.debug) {

@@ -12,7 +12,6 @@ import {
 	createParser,
 	parseOptions,
 	imageFileToBase64,
-	downloadImageToVault,
 	getImageDimensions,
 } from './parser';
 import {
@@ -35,6 +34,10 @@ interface PasteInfo {
 export default class ObsidianLinkEmbedPlugin extends Plugin {
 	settings: ObsidianLinkEmbedPluginSettings;
 	pasteInfo: PasteInfo;
+	imageDimensionsCache: Map<
+		string,
+		{ width: number; height: number; aspectRatio: number }
+	>;
 
 	async getText(editor: Editor): Promise<Selected> {
 		let selected = ExEditor.getSelectedText(editor, this.settings.debug);
@@ -56,6 +59,9 @@ export default class ObsidianLinkEmbedPlugin extends Plugin {
 			trigger: false,
 			text: '',
 		};
+
+		// Initialize image dimensions cache
+		this.imageDimensionsCache = new Map();
 
 		this.registerEvent(
 			this.app.workspace.on(
@@ -95,26 +101,6 @@ export default class ObsidianLinkEmbedPlugin extends Plugin {
 			},
 		});
 
-		// Command to test downloading an image to the vault
-		this.addCommand({
-			id: 'test-save-image',
-			name: 'Test: Save image to vault',
-			editorCallback: async (editor: Editor) => {
-				let selected = await this.getText(editor);
-				if (!selected.text) {
-					new Notice('Please select an image URL first');
-					return;
-				}
-
-				if (!ObsidianLinkEmbedPlugin.isUrl(selected.text)) {
-					new Notice('Selected text is not a valid URL');
-					return;
-				}
-
-				// Try to download the image
-				await this.testImageDownload(selected.text);
-			},
-		});
 		// Add commands for each parser type
 		Object.keys(parseOptions).forEach((name) => {
 			this.addCommand({
@@ -170,7 +156,10 @@ export default class ObsidianLinkEmbedPlugin extends Plugin {
 					imageUrl
 				) {
 					try {
-						const dimensions = await getImageDimensions(imageUrl);
+						const dimensions = await getImageDimensions(
+							imageUrl,
+							this.imageDimensionsCache,
+						);
 						if (dimensions) {
 							aspectRatio = dimensions.aspectRatio;
 							if (this.settings.debug) {
@@ -234,7 +223,13 @@ export default class ObsidianLinkEmbedPlugin extends Plugin {
 		this.addSettingTab(new ObsidianLinkEmbedSettingTab(this.app, this));
 	}
 
-	onunload() {}
+	onunload() {
+		// Clear image dimensions cache to prevent memory leaks
+		if (this.imageDimensionsCache && this.imageDimensionsCache.size > 0) {
+			console.log('[Link Embed] Clearing image dimensions cache');
+			this.imageDimensionsCache.clear();
+		}
+	}
 
 	async loadSettings() {
 		this.settings = Object.assign(
@@ -461,31 +456,5 @@ export default class ObsidianLinkEmbedPlugin extends Plugin {
 		}
 		const errorMessage = error?.message || 'Failed to fetch data';
 		new Notice(`Error: ${errorMessage}`);
-	}
-
-	// Test function for downloading an image to the vault (for debugging)
-	async testImageDownload(imageUrl: string): Promise<string> {
-		if (!this.settings.saveImagesToVault) {
-			new Notice(
-				'Image saving is disabled. Enable it in settings first.',
-			);
-			return imageUrl;
-		}
-
-		try {
-			const localPath = await downloadImageToVault(
-				imageUrl,
-				this.app.vault,
-				this.settings.imageFolderPath,
-			);
-
-			new Notice(`Image saved to ${localPath}`);
-
-			return localPath;
-		} catch (error) {
-			console.error('[Link Embed] Failed to save image to vault:', error);
-			new Notice(`Failed to save image: ${error.message}`);
-			return imageUrl;
-		}
 	}
 }
