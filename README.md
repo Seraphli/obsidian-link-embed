@@ -39,18 +39,43 @@ If you enable `Auto Embed` in the setting, the plugin will automatically replace
 
 You can change the default parser in the plugin settings.
 
-And `In Place` means the selection in the editor will be removed.
+`In Place` means the selection in the editor will be removed.
 
 The embedded preview will always be inserted into the next line.
 
-Here is the table comparing the supported parsers.
+#### Advanced Settings
 
-| Parser                                      | Speed  | Stable | Desc Length | Limitation |
-| ------------------------------------------- | ------ | ------ | ----------- | ---------- |
-| [JSONLink](https://jsonlink.io/)            | \*\*   | \*     | \*\*\*      | Unlimited  |
-| [MicroLink(Default)](https://microlink.io/) | \*\*\* | \*\*\* | \*\*        | 50/day     |
-| [Iframely](https://iframely.com/)           | \*\*   | \*\*   | \*          | 1000/month |
+- **Save Images to Vault**: When enabled, images from embedded links will be downloaded and saved to your vault.
+- **Image Folder Path**: Specify the folder where images will be saved (default: "link-embed-images").
+- **Respect Aspect Ratio**: Preserves the original aspect ratio of embedded images for better visual layout.
+- **Metadata**: A new feature that allows you to include custom information with your embeds. This can be used to add notes, tags, or any additional data you want to associate with the embedded link. The metadata will be preserved in the embed code block.
 
+## Supported Parsers
+
+The plugin supports the following parsers:
+
+- Local - No API needed, parses HTML directly
+- [JSONLink](https://jsonlink.io/) - Requires API key
+- [MicroLink](https://microlink.io/) (Default) - Limited to 50 requests per day
+- [Iframely](https://iframely.com/) - Limited to 1000 requests per month
+- [LinkPreview](https://www.linkpreview.net/) - Requires API key
+
+## Embed Format
+
+Starting from version 2.0.0, embeds are stored in code blocks:
+
+```embed
+title: "Example Title"
+image: "https://example.com/image.jpg"
+description: "This is an example description"
+url: "https://example.com"
+aspectRatio: "1.5"
+metadata: "Additional custom metadata can be included here"
+```
+
+The `aspectRatio` parameter is optional and helps maintain the proper image dimensions.
+
+The `metadata` field is also optional and can be used to include any additional information you want to associate with the link.
 
 ## See Also
 
@@ -60,79 +85,3 @@ Here is the table comparing the supported parsers.
 
 - [Obsidian Rich Link](https://github.com/dhamaniasad/obsidian-rich-links)
 - [Obsidian Auto Link Title](https://github.com/zolrath/obsidian-auto-link-title)
-
-## Example results from different parsers
-
-**Example 1**
-
-https://arxiv.org/abs/2202.08434
-
-JSONLink
-
-```json
-{
-	"title": "[2202.08434] A Survey of Explainable Reinforcement Learning",
-	"image": "https://static.arxiv.org/icons/twitter/arxiv-logo-twitter-square.png",
-	"description": "Explainable reinforcement learning (XRL) is an emerging subfield of\nexplainable machine learning that has attracted considerable attention in\nrecent years. The goal of XRL is to elucidate the decision-making process of\nlearning agents in sequential decision-making settings. In this survey, we\npropose a novel taxonomy for organizing the XRL literature that prioritizes the\nRL setting. We overview techniques according to this taxonomy. We point out\ngaps in the literature, which we use to motivate and outline a roadmap for\nfuture work.",
-	"url": "https://arxiv.org/abs/2202.08434"
-}
-```
-
-MicroLink
-
-```json
-{
-	"title": "A Survey of Explainable Reinforcement Learning",
-	"image": "https://static.arxiv.org/icons/twitter/arxiv-logo-twitter-square.png",
-	"description": "Explainable reinforcement learning (XRL) is an emerging subfield of\nexplainable machine learning that has attracted considerable attention in\nrecent years. The goal of XRL is to elucidate the decision-making process of\nlearning agents in sequential decision-making settings. In this survey, we\npropos…",
-	"url": "https://arxiv.org/abs/2202.08434"
-}
-```
-
-Iframely
-
-```json
-{
-	"title": "A Survey of Explainable Reinforcement Learning",
-	"image": "https://static.arxiv.org/icons/twitter/arxiv-logo-twitter-square.png",
-	"description": "Explainable reinforcement learning (XRL) is an emerging subfield of explainable machine learning that has attracted considerable attention in recent years. The goal of XRL is to elucidate the...",
-	"url": "https://arxiv.org/abs/2202.08434"
-}
-```
-
-**Example 2**
-
-https://www.redblobgames.com/articles/visibility/
-
-JSONLink
-
-```json
-{
-	"title": "2d Visibility",
-	"image": "https://www.redblobgames.com/articles/visibility/static-lightmap.png?2012-05-21-15-55-03",
-	"description": "In a 2D top-down map it is sometimes useful to calculate which areas are visible from a given point. For example you might want to hide what’s not visible from the player’s location, or you might want to know what areas would be lit by a torch.",
-	"url": "https://www.redblobgames.com/articles/visibility/"
-}
-```
-
-MicroLink
-
-```json
-{
-	"title": "2d Visibility",
-	"image": "https://www.redblobgames.com/favicon.ico",
-	"description": "In a 2D top-down map it is sometimes useful to calculate which areas are visible from a given point. For example you might want to hide what’s not visible from the player’s location, or you might want to know what areas would be lit by a torch.",
-	"url": "https://www.redblobgames.com/articles/visibility/"
-}
-```
-
-Iframely
-
-```json
-{
-	"title": "2d Visibility",
-	"image": "https://www.redblobgames.com/favicon.ico",
-	"description": "",
-	"url": "https://www.redblobgames.com/articles/visibility/"
-}
-```

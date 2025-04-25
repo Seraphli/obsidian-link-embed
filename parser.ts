@@ -357,9 +357,9 @@ class LinkPreviewParser extends Parser {
 }
 
 class JSONLinkParser extends Parser {
-	constructor() {
+	constructor(apiKey: string = '') {
 		super();
-		this.api = 'https://jsonlink.io/api/extract?url={{{url}}}';
+		this.api = `https://jsonlink.io/api/extract?url={{{url}}}&api_key=${apiKey}`;
 	}
 	process(data: any): { title: string; image: string; description: string } {
 		const title = data.title || '';
@@ -591,7 +591,15 @@ export function createParser(
 
 	switch (parserType) {
 		case 'jsonlink':
-			parser = new JSONLinkParser();
+			const jsonlinkApiKey = settings.jsonlinkApiKey;
+			if (!jsonlinkApiKey) {
+				console.log('[Link Embed] JSONLink API key is not set');
+				new Notice(
+					'JSONLink API key is not set. Please provide an API key in the settings.',
+				);
+				throw new Error('JSONLink API key is not set');
+			}
+			parser = new JSONLinkParser(jsonlinkApiKey);
 			break;
 		case 'microlink':
 			parser = new MicroLinkParser();

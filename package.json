@@ -1,7 +1,7 @@
 {
 	"name": "obsidian-link-embed",
-	"version": "2.5.5",
-	"description": "This plugin allows you to convert URLs in your notes into embedded previews.",
+	"version": "2.5.6",
+	"description": "This plugin auto-fetches page metadata to embed Notion-style link preview cards.",
 	"main": "main.js",
 	"scripts": {
 		"dev": "node esbuild.config.mjs",

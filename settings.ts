@@ -15,6 +15,7 @@ export interface ObsidianLinkEmbedPluginSettings {
 	debug: boolean;
 	delay: number;
 	linkpreviewApiKey: string;
+	jsonlinkApiKey: string;
 	metadataTemplate: string;
 	useMetadataTemplate: boolean;
 	saveImagesToVault: boolean;
@@ -28,12 +29,13 @@ export const DEFAULT_SETTINGS: ObsidianLinkEmbedPluginSettings = {
 	popup: true,
 	rmDismiss: false,
 	autoEmbedWhenEmpty: false,
-	primary: 'microlink',
-	backup: 'jsonlink',
+	primary: 'local',
+	backup: 'microlink',
 	inPlace: false,
 	debug: false,
 	delay: 0,
 	linkpreviewApiKey: '',
+	jsonlinkApiKey: '',
 	metadataTemplate:
 		'createdby: "linkembed"\nparser: "{{parser}}"\ndate: "{{date}}"\ncustom_date: "{{#formatDate}}YYYY-MM-DD HH:mm:ss{{/formatDate}}"',
 	useMetadataTemplate: false,
@@ -303,6 +305,18 @@ export class ObsidianLinkEmbedSettingTab extends PluginSettingTab {
 					.setValue(this.plugin.settings.linkpreviewApiKey)
 					.onChange((value) => {
 						this.plugin.settings.linkpreviewApiKey = value;
+						this.plugin.saveSettings();
+					});
+			});
+
+		new Setting(containerEl)
+			.setName('JSONLink API Key')
+			.setDesc('Enter your API key for the JSONLink provider.')
+			.addText((value) => {
+				value
+					.setValue(this.plugin.settings.jsonlinkApiKey)
+					.onChange((value) => {
+						this.plugin.settings.jsonlinkApiKey = value;
 						this.plugin.saveSettings();
 					});
 			});
