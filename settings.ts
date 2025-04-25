@@ -293,38 +293,6 @@ export class ObsidianLinkEmbedSettingTab extends PluginSettingTab {
 					});
 			});
 
-		new Setting(containerEl)
-			.setName('Default Image Width')
-			.setDesc(
-				'Default width in pixels for square/tall images. Default is 160.',
-			)
-			.addText((value) => {
-				value
-					.setValue(String(this.plugin.settings.defaultImageWidth))
-					.onChange((value) => {
-						const numValue = Number(value);
-						if (!isNaN(numValue) && numValue > 0) {
-							this.plugin.settings.defaultImageWidth = numValue;
-							this.plugin.saveSettings();
-						}
-					});
-			});
-
-		new Setting(containerEl)
-			.setName('Maximum Image Width')
-			.setDesc('Maximum width in pixels for wide images. Default is 320.')
-			.addText((value) => {
-				value
-					.setValue(String(this.plugin.settings.maxImageWidth))
-					.onChange((value) => {
-						const numValue = Number(value);
-						if (!isNaN(numValue) && numValue > 0) {
-							this.plugin.settings.maxImageWidth = numValue;
-							this.plugin.saveSettings();
-						}
-					});
-			});
-
 		containerEl.createEl('h3', { text: 'Provider Settings' });
 
 		new Setting(containerEl)

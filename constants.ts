@@ -17,7 +17,7 @@ export const HTMLTemplate = `<div
 >
   <div class="w _lc _sm _od _lh14 _ts">
     <div class="wf">
-      <div class="wc" style="width: {{calculatedWidth}}px; min-width: {{calculatedWidth}}px;">
+      <div class="wc{{#respectAR}} _wi{{/respectAR}}" {{#respectAR}}style="width: {{calculatedWidth}}px;"{{/respectAR}}>
         <div class="e">
           <div class="em">
             <a
@@ -28,7 +28,7 @@ export const HTMLTemplate = `<div
               class="c"
               style="
                 background-image: url(\'{{{image}}}\');
-                background-size: {{#isWideImage}}contain{{/isWideImage}}{{^isWideImage}}cover{{/isWideImage}};
+                background-size: contain;
                 background-position: center;
               "
             ></a>

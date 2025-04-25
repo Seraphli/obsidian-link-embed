@@ -196,14 +196,10 @@ export default class ObsidianLinkEmbedPlugin extends Plugin {
 				}
 
 				// Calculate width based on aspect ratio
-				const baseWidth = this.settings.defaultImageWidth; // Use width from settings
-				const calculatedWidth =
-					aspectRatio && aspectRatio < 100
-						? Math.min(
-								this.settings.maxImageWidth,
-								Math.round((baseWidth * 100) / aspectRatio),
-						  ) // Use max width from settings
-						: baseWidth;
+				const baseWidth = 160;
+				const calculatedWidth = Math.round(
+					(baseWidth * 100) / aspectRatio,
+				);
 
 				// Use the processed image URL and any aspect ratio information
 				const templateData = {
@@ -211,11 +207,7 @@ export default class ObsidianLinkEmbedPlugin extends Plugin {
 					image: imageUrl,
 					description: info.description,
 					url: info.url,
-					aspectRatio: this.settings.respectImageAspectRatio
-						? aspectRatio
-						: 100,
-					// Add flag to determine if this is a wide image (width > height)
-					isWideImage: aspectRatio < 100,
+					respectAR: this.settings.respectImageAspectRatio,
 					calculatedWidth: calculatedWidth,
 				};
 
@@ -419,32 +411,13 @@ export default class ObsidianLinkEmbedPlugin extends Plugin {
 					);
 				}
 
-				// Calculate width based on aspect ratio
-				const baseWidth = this.settings.defaultImageWidth; // Use width from settings
-				const calculatedWidth =
-					data.aspectRatio && data.aspectRatio < 100
-						? Math.min(
-								this.settings.maxImageWidth,
-								Math.round(
-									(baseWidth * 100) / data.aspectRatio,
-								),
-						  ) // Use max width from settings
-						: baseWidth;
-
 				const escapedData = {
 					title: data.title.replace(/"/g, '\\"'),
 					image: data.image,
 					description: data.description.replace(/"/g, '\\"'),
 					url: data.url,
 					metadata: metadata || false, // Ensure empty string becomes falsy for Mustache conditional
-					aspectRatio: this.settings.respectImageAspectRatio
-						? data.aspectRatio
-						: 100,
-					// Add flag to determine if this is a wide image (width > height)
-					isWideImage: data.aspectRatio
-						? data.aspectRatio < 100
-						: false,
-					calculatedWidth: calculatedWidth,
+					aspectRatio: data.aspectRatio,
 				};
 				const embed = Mustache.render(template, escapedData) + '\n';
 				if (this.settings.delay > 0) {
