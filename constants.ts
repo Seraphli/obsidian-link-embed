@@ -7,14 +7,7 @@ aspectRatio: "{{aspectRatio}}"{{/aspectRatio}}{{#metadata}}
 {{{metadata}}}{{/metadata}}
 \`\`\``;
 
-export const HTMLTemplate = `<div
-  style="
-    border: 1px solid var(--background-modifier-border);
-    overflow: hidden;
-    border-radius: var(--radius-s);
-    box-shadow: rgba(0, 0, 0, 0.06) 0px 1px 3px;
-  "
->
+export const HTMLTemplate = `<div class="embed">
   <div class="w _lc _sm _od _lh14 _ts">
     <div class="wf">
       <div class="wc{{#respectAR}} _wi{{/respectAR}}" {{#respectAR}}style="width: {{calculatedWidth}}px;"{{/respectAR}}>

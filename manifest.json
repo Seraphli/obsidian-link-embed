@@ -1,9 +1,9 @@
 {
 	"id": "obsidian-link-embed",
 	"name": "Link Embed",
-	"version": "2.5.4",
+	"version": "2.5.5",
 	"minAppVersion": "0.12.0",
-	"description": "This plugin allows you to convert URLs in your notes into embedded previews.",
+	"description": "Instantly turn plain links in your notes into beautiful, Notion-style rich link previews. The plugin automatically fetches page metadata (title, description, favicon & image) and renders it as an elegant, card-styled embed—so your vault stays informative and visually appealing with zero extra effort.",
 	"author": "SErAphLi",
 	"authorUrl": "https://github.com/Seraphli",
 	"isDesktopOnly": false
