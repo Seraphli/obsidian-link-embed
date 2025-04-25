@@ -436,18 +436,21 @@ class LocalParser extends Parser {
 	}
 
 	getImage(doc: Document, url: URL): string {
-		let element = doc.querySelector('head meta[property="og:image"]');
-		if (element instanceof HTMLMetaElement) {
-			// Handle relative URLs by resolving against the base URL
+		const baseEl = doc.querySelector('base[href]') as HTMLBaseElement;
+		const base = (baseEl && baseEl.href) || url.href;
+
+		const og = doc.querySelector<HTMLMetaElement>(
+			'head meta[property="og:image"]',
+		);
+		if (og?.content) {
 			try {
-				return new URL(element.content, url.origin).href;
-			} catch (e) {
-				// If URL construction fails, return the original content
-				return element.content;
+				return new URL(og.content, base).href;
+			} catch {
+				return og.content;
 			}
 		}
 
-		let selectors = [
+		const selectors = [
 			'div[itemtype$="://schema.org/Product"] noscript img',
 			'div[itemtype$="://schema.org/Product"] img',
 			'#main noscript img',
@@ -459,18 +462,19 @@ class LocalParser extends Parser {
 			'body img',
 		];
 
-		for (const selector of selectors) {
-			let images = doc.querySelectorAll(selector);
-
-			for (let index = 0; index < images.length; index++) {
-				const element = images[index];
-				if (!this.meetsCriteria(element)) {
-					continue;
-				}
-				let attribute = element.getAttribute('src');
-				// Get image from document and return the full URL
-				if (attribute) {
-					return (element as HTMLImageElement).src;
+		for (const sel of selectors) {
+			const imgs = Array.from(
+				doc.querySelectorAll<HTMLImageElement>(sel),
+			);
+			for (const img of imgs) {
+				if (!this.meetsCriteria(img)) continue;
+				const src = img.getAttribute('src');
+				if (src) {
+					try {
+						return new URL(src, base).href;
+					} catch {
+						return src;
+					}
 				}
 			}
 		}
