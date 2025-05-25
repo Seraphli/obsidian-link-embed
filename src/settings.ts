@@ -1,6 +1,6 @@
 import { App, PluginSettingTab, Setting, Notice } from 'obsidian';
 import ObsidianLinkEmbedPlugin from 'main';
-import { parseOptions } from './parser';
+import { parseOptions } from './parsers';
 import { REGEX, MarkdownTemplate } from './constants';
 import Mustache from 'mustache';
 import he from 'he';

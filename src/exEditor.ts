@@ -13,6 +13,28 @@ export interface Selected {
 }
 
 export class ExEditor {
+	/**
+	 * Get the selected text from editor or clipboard if no text is selected.
+	 * @param editor The editor instance.
+	 * @param debug Whether to log debug information.
+	 * @returns The selected text and boundary information.
+	 */
+	public static async getText(
+		editor: Editor,
+		debug: boolean,
+	): Promise<Selected> {
+		let selected = ExEditor.getSelectedText(editor, debug);
+		let cursor = editor.getCursor();
+		if (!selected.can) {
+			selected.text = await navigator.clipboard.readText();
+			selected.boundary = {
+				start: cursor,
+				end: cursor,
+			};
+		}
+		return selected;
+	}
+
 	public static getSelectedText(editor: Editor, debug: boolean): Selected {
 		if (debug) {
 			console.log(

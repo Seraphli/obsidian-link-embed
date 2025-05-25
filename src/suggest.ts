@@ -9,7 +9,8 @@ import {
 	TFile,
 } from 'obsidian';
 import type ObsidianLinkEmbedPlugin from 'main';
-import { createParser } from './parser';
+import { createParser } from './parsers';
+import { embedUrl } from './embedUtils';
 
 interface IDateCompletion {
 	choice: string;
@@ -50,7 +51,7 @@ export default class EmbedSuggest extends EditorSuggest<IDateCompletion> {
 	): void {
 		if (suggestion.choice == 'Create Embed') {
 			const cursor = this.editor.getCursor();
-			this.plugin.embedUrl(
+			embedUrl(
 				this.editor,
 				{
 					can: true,
@@ -64,6 +65,8 @@ export default class EmbedSuggest extends EditorSuggest<IDateCompletion> {
 					},
 				},
 				[this.plugin.settings.primary, this.plugin.settings.backup],
+				this.plugin.settings,
+				this.plugin.cache,
 				true,
 			);
 		} else if (suggestion.choice == 'Create Markdown Link') {
@@ -150,7 +153,7 @@ export default class EmbedSuggest extends EditorSuggest<IDateCompletion> {
 		if (this.plugin.settings.autoEmbedWhenEmpty) {
 			const currentCursor = this.editor.getCursor();
 			if (currentCursor.ch - this.plugin.pasteInfo.text.length == 0) {
-				this.plugin.embedUrl(
+				embedUrl(
 					this.editor,
 					{
 						can: true,
@@ -166,6 +169,8 @@ export default class EmbedSuggest extends EditorSuggest<IDateCompletion> {
 						},
 					},
 					[this.plugin.settings.primary, this.plugin.settings.backup],
+					this.plugin.settings,
+					this.plugin.cache,
 					true,
 				);
 				return null;
