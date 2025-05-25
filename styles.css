@@ -136,16 +136,6 @@
 		align-content: stretch;
 	}
 }
-@media (max-width: 459px) {
-	._lc .twt {
-		display: none;
-	}
-}
-@media (min-width: 460px) {
-	._lc .twd {
-		display: none;
-	}
-}
 ._lc._ts .th {
 	-webkit-line-clamp: 1;
 }

@@ -19,6 +19,7 @@ export interface ParsedLinkData {
 	description: string;
 	url: string;
 	aspectRatio?: number;
+	favicon?: string;
 }
 
 /**
@@ -32,10 +33,10 @@ export interface ParsedLinkData {
  */
 export async function getImageDimensions(
 	imageUrl: string,
-	cache?: Map<string, ImageDimensions>,
+	cache?: Map<string, any> | null,
 ): Promise<ImageDimensions | null> {
 	try {
-		// Check if dimensions are already in cache
+		// Check if dimensions are already in cache using the URL directly as the key
 		if (cache && cache.has(imageUrl)) {
 			console.log(
 				'[Link Embed] Using cached image dimensions for:',
@@ -56,7 +57,7 @@ export async function getImageDimensions(
 					aspectRatio: aspectRatio,
 				};
 
-				// Store in cache for future use if available
+				// Store in cache for future use if available and enabled
 				if (cache) {
 					cache.set(imageUrl, dimensions);
 					console.log(
@@ -250,17 +251,51 @@ export abstract class Parser {
 
 	/**
 	 * Common method to handle image processing and aspect ratio calculation
-	 * @param processedData The data with basic title, image, and description
+	 * @param processedData The data with basic title, image, description, and optional favicon
 	 * @param url The URL being processed
-	 * @returns ParsedLinkData with image path and aspect ratio
+	 * @returns ParsedLinkData with image path, aspect ratio, and favicon
 	 */
 	async handleImageProcessing(
-		processedData: { title: string; image: string; description: string },
+		processedData: {
+			title: string;
+			image: string;
+			description: string;
+			favicon?: string;
+		},
 		url: string,
 	): Promise<ParsedLinkData> {
 		// 1. Create the result object with URL
 		const result: ParsedLinkData = { ...processedData, url };
 		const parserType = this.constructor.name;
+
+		// If we don't have a favicon but we're a non-LocalParser, try to get one using the LocalParser method
+		if (!result.favicon && !(this instanceof LocalParser)) {
+			try {
+				// Create a temporary LocalParser to get favicon
+				const localParser = new LocalParser();
+				// Get the HTML content
+				let html =
+					(await localParser.getHtmlByElectron(url)) ||
+					(await localParser.getHtmlByRequest(url));
+				if (html) {
+					let parser = new DOMParser();
+					const doc = parser.parseFromString(html, 'text/html');
+					let uRL = new URL(url);
+					// Get the favicon
+					result.favicon = localParser.getFavicon(doc, uRL);
+					if (this.debug && result.favicon) {
+						console.log(
+							`[Link Embed] Added favicon from LocalParser: ${result.favicon}`,
+						);
+					}
+				}
+			} catch (error) {
+				console.error(
+					'[Link Embed] Error getting favicon with LocalParser:',
+					error,
+				);
+			}
+		}
 
 		// 2. Handle image storage to vault if needed
 		if (this.saveImagesToVault && processedData.image && this.vault) {
@@ -290,7 +325,8 @@ export abstract class Parser {
 				const plugin = (window as any).app?.plugins?.plugins[
 					'obsidian-link-embed'
 				];
-				const cache = plugin?.imageDimensionsCache;
+				// Get cache and useCache setting
+				const cache = plugin?.settings?.useCache ? plugin?.cache : null;
 
 				const dimensions = await getImageDimensions(
 					result.image,
@@ -333,6 +369,7 @@ export abstract class Parser {
 		title: string;
 		image: string;
 		description: string;
+		favicon?: string;
 	};
 }
 
@@ -400,15 +437,21 @@ class IframelyParser extends Parser {
 }
 
 class LocalParser extends Parser {
-	process(data: any): { title: string; image: string; description: string } {
+	process(data: any): {
+		title: string;
+		image: string;
+		description: string;
+		favicon?: string;
+	} {
 		let title = data.title || '';
 		const image = data.image || '';
 		let description: string = data.description || '';
+		const favicon = data.favicon || '';
 
 		description = description.replace(/\n/g, ' ').replace(/\\/g, '\\\\');
 		title = title.replace(/\n/g, ' ').replace(/\\/g, '\\\\');
 
-		return { title, image, description };
+		return { title, image, description, favicon };
 	}
 
 	getTitle(doc: Document, url: URL): string {
@@ -452,17 +495,48 @@ class LocalParser extends Parser {
 		const baseEl = doc.querySelector('base[href]') as HTMLBaseElement;
 		const base = (baseEl && baseEl.href) || url.href;
 
+		if (this.debug) {
+			console.log(
+				'[Link Embed] Image - Looking for image for:',
+				url.href,
+			);
+			console.log('[Link Embed] Image - Base URL:', base);
+		}
+
+		// First try Open Graph image
 		const og = doc.querySelector<HTMLMetaElement>(
 			'head meta[property="og:image"]',
 		);
-		if (og?.content) {
-			try {
-				return new URL(og.content, base).href;
-			} catch {
-				return og.content;
+		if (og) {
+			if (this.debug) {
+				console.log(
+					'[Link Embed] Image - Found Open Graph image:',
+					og.content,
+				);
+			}
+			if (og.content) {
+				try {
+					const resolvedUrl = new URL(og.content, base).href;
+					if (this.debug) {
+						console.log(
+							'[Link Embed] Image - Resolved OG image URL:',
+							resolvedUrl,
+						);
+					}
+					return resolvedUrl;
+				} catch (error) {
+					if (this.debug) {
+						console.error(
+							'[Link Embed] Image - Error resolving OG image URL:',
+							error,
+						);
+					}
+					return og.content;
+				}
 			}
 		}
 
+		// Try each image selector in order
 		const selectors = [
 			'div[itemtype$="://schema.org/Product"] noscript img',
 			'div[itemtype$="://schema.org/Product"] img',
@@ -479,19 +553,48 @@ class LocalParser extends Parser {
 			const imgs = Array.from(
 				doc.querySelectorAll<HTMLImageElement>(sel),
 			);
+			if (this.debug) {
+				console.log(
+					`[Link Embed] Image - Found ${imgs.length} images for selector "${sel}"`,
+				);
+			}
 			for (const img of imgs) {
-				if (!this.meetsCriteria(img)) continue;
+				if (!this.meetsCriteria(img)) {
+					continue;
+				}
 				const src = img.getAttribute('src');
 				if (src) {
+					if (this.debug) {
+						console.log(
+							'[Link Embed] Image - Found valid image src:',
+							src,
+						);
+					}
 					try {
-						return new URL(src, base).href;
-					} catch {
+						const resolvedUrl = new URL(src, base).href;
+						if (this.debug) {
+							console.log(
+								'[Link Embed] Image - Resolved image URL:',
+								resolvedUrl,
+							);
+						}
+						return resolvedUrl;
+					} catch (error) {
+						if (this.debug) {
+							console.error(
+								'[Link Embed] Image - Error resolving image URL:',
+								error,
+							);
+						}
 						return src;
 					}
 				}
 			}
 		}
 
+		if (this.debug) {
+			console.log('[Link Embed] Image - No suitable image found');
+		}
 		return '';
 	}
 
@@ -507,16 +610,150 @@ class LocalParser extends Parser {
 		return '';
 	}
 
+	getFavicon(doc: Document, url: URL): string {
+		const baseEl = doc.querySelector('base[href]') as HTMLBaseElement;
+		const base = (baseEl && baseEl.href) || url.href;
+
+		if (this.debug) {
+			console.log(
+				'[Link Embed] Favicon - Looking for favicon for:',
+				url.href,
+			);
+			console.log('[Link Embed] Favicon - Base URL:', base);
+		}
+
+// Check for apple-touch-icon
+const appleIcon = doc.querySelector<HTMLLinkElement>(
+'link[rel="apple-touch-icon"]',
+);
+if (appleIcon) {
+const hrefAttr = appleIcon.getAttribute("href");
+if (this.debug) {
+console.log(
+'[Link Embed] Favicon - Found apple-touch-icon:',
+hrefAttr,
+);
+}
+if (hrefAttr) {
+try {
+const resolvedUrl = new URL(hrefAttr, base).href;
+					if (this.debug) {
+						console.log(
+							'[Link Embed] Favicon - Resolved apple-touch-icon URL:',
+							resolvedUrl,
+						);
+					}
+					return resolvedUrl;
+				} catch (error) {
+					if (this.debug) {
+						console.error(
+							'[Link Embed] Favicon - Error resolving apple-touch-icon URL:',
+							error,
+						);
+					}
+					return hrefAttr;
+				}
+			}
+		}
+
+// Check for standard favicon link
+const faviconLink = doc.querySelector<HTMLLinkElement>(
+'link[rel="icon"], link[rel="shortcut icon"]',
+);
+if (faviconLink) {
+const hrefAttr = faviconLink.getAttribute("href");
+if (this.debug) {
+console.log(
+'[Link Embed] Favicon - Found standard favicon link:',
+hrefAttr,
+);
+}
+if (hrefAttr) {
+try {
+const resolvedUrl = new URL(hrefAttr, base).href;
+					if (this.debug) {
+						console.log(
+							'[Link Embed] Favicon - Resolved standard favicon URL:',
+							resolvedUrl,
+						);
+					}
+					return resolvedUrl;
+				} catch (error) {
+					if (this.debug) {
+						console.error(
+							'[Link Embed] Favicon - Error resolving standard favicon URL:',
+							error,
+						);
+					}
+					return hrefAttr;
+				}
+			}
+		}
+
+		// Default to /favicon.ico
+		try {
+			const defaultFaviconUrl = new URL('/favicon.ico', base).href;
+			if (this.debug) {
+				console.log(
+					'[Link Embed] Favicon - Using default favicon.ico URL:',
+					defaultFaviconUrl,
+				);
+			}
+			return defaultFaviconUrl;
+		} catch (error) {
+			if (this.debug) {
+				console.error(
+					'[Link Embed] Favicon - Error creating default favicon URL:',
+					error,
+				);
+			}
+			return '';
+		}
+	}
+
 	async getHtmlByRequest(url: string): Promise<string> {
-		const html = await requestUrl({ url: url }).then((site) => {
-			return site.text;
-		});
-		return html;
+		try {
+			if (this.debug) {
+				console.log(
+					'[Link Embed] getHtmlByRequest - Fetching URL:',
+					url,
+				);
+			}
+			const response = await requestUrl({ url: url });
+			const html = response.text;
+
+			if (this.debug) {
+				console.log(
+					'[Link Embed] getHtmlByRequest - Successfully fetched HTML, size:',
+					html.length,
+				);
+				// Log response headers to check content type
+				console.log(
+					'[Link Embed] getHtmlByRequest - Response headers:',
+					response.headers,
+				);
+			}
+
+			return html;
+		} catch (error) {
+			console.error(
+				'[Link Embed] getHtmlByRequest - Error fetching HTML:',
+				error,
+			);
+			return null;
+		}
 	}
 
 	async getHtmlByElectron(url: string): Promise<string> {
 		let window: any = null;
 		try {
+			if (this.debug) {
+				console.log(
+					'[Link Embed] getHtmlByElectron - Attempting to fetch URL:',
+					url,
+				);
+			}
+
 			const { remote } = electronPkg;
 			const { BrowserWindow } = remote;
 
@@ -534,12 +771,38 @@ class LocalParser extends Parser {
 			window.webContents.setAudioMuted(true);
 
 			await new Promise<void>((resolve, reject) => {
-				window.webContents.on('did-finish-load', (e: any) =>
-					resolve(e),
-				);
-				window.webContents.on('did-fail-load', (e: any) => reject(e));
+				window.webContents.on('did-finish-load', (e: any) => {
+					if (this.debug) {
+						console.log(
+							'[Link Embed] getHtmlByElectron - Page loaded successfully',
+						);
+					}
+					resolve(e);
+				});
+				window.webContents.on('did-fail-load', (e: any) => {
+					if (this.debug) {
+						console.error(
+							'[Link Embed] getHtmlByElectron - Page failed to load:',
+							e,
+						);
+					}
+					reject(e);
+				});
+
+				if (this.debug) {
+					console.log(
+						'[Link Embed] getHtmlByElectron - Loading URL:',
+						url,
+					);
+				}
 				window.loadURL(url);
 			});
+
+			if (this.debug) {
+				console.log(
+					'[Link Embed] getHtmlByElectron - Executing JavaScript to get HTML content',
+				);
+			}
 
 			let doc = await window.webContents.executeJavaScript(
 				'document.documentElement.outerHTML;',
@@ -547,9 +810,10 @@ class LocalParser extends Parser {
 			window.close();
 			return doc;
 		} catch (ex) {
-			if (this.debug) {
-				console.log('[Link Embed] Failed to use electron: ', ex);
-			}
+			console.error(
+				'[Link Embed] getHtmlByElectron - Failed to use electron:',
+				ex,
+			);
 			if (window) {
 				window.close();
 			}
@@ -572,9 +836,15 @@ class LocalParser extends Parser {
 		let title = this.getTitle(doc, uRL);
 		let image = this.getImage(doc, uRL);
 		let description = this.getDescription(doc);
+		let favicon = this.getFavicon(doc, uRL);
 
 		// 1. First, process the raw data to extract basic information
-		let processedData = this.process({ title, image, description });
+		let processedData = this.process({
+			title,
+			image,
+			description,
+			favicon,
+		});
 
 		// 2. Use the common method to handle image processing and aspect ratio
 		return await this.handleImageProcessing(processedData, url);

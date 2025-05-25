@@ -21,8 +21,7 @@ export interface ObsidianLinkEmbedPluginSettings {
 	saveImagesToVault: boolean;
 	imageFolderPath: string;
 	respectImageAspectRatio: boolean;
-	defaultImageWidth: number;
-	maxImageWidth: number;
+	useCache: boolean;
 }
 
 export const DEFAULT_SETTINGS: ObsidianLinkEmbedPluginSettings = {
@@ -37,13 +36,12 @@ export const DEFAULT_SETTINGS: ObsidianLinkEmbedPluginSettings = {
 	linkpreviewApiKey: '',
 	jsonlinkApiKey: '',
 	metadataTemplate:
-		'createdby: "linkembed"\nparser: "{{parser}}"\ndate: "{{date}}"\ncustom_date: "{{#formatDate}}YYYY-MM-DD HH:mm:ss{{/formatDate}}"',
+		'parser: "{{parser}}"\ndate: "{{date}}"\ncustom_date: "{{#formatDate}}YYYY-MM-DD HH:mm:ss{{/formatDate}}"',
 	useMetadataTemplate: false,
 	saveImagesToVault: false,
 	imageFolderPath: 'link-embed-images',
 	respectImageAspectRatio: true,
-	defaultImageWidth: 160,
-	maxImageWidth: 320,
+	useCache: true,
 };
 
 export class ObsidianLinkEmbedSettingTab extends PluginSettingTab {
@@ -252,6 +250,20 @@ export class ObsidianLinkEmbedSettingTab extends PluginSettingTab {
 			});
 
 		containerEl.createEl('h3', { text: 'Image Settings' });
+
+		new Setting(containerEl)
+			.setName('Use Cache')
+			.setDesc(
+				'When enabled, the plugin will cache favicon images and aspect ratios to improve performance.',
+			)
+			.addToggle((value) => {
+				value
+					.setValue(this.plugin.settings.useCache)
+					.onChange((value) => {
+						this.plugin.settings.useCache = value;
+						this.plugin.saveSettings();
+					});
+			});
 
 		new Setting(containerEl)
 			.setName('Respect Image Aspect Ratio')

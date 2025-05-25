@@ -2,7 +2,8 @@ export const MarkdownTemplate = `\`\`\`embed
 title: \"{{{title}}}\"
 image: \"{{{image}}}\"
 description: \"{{{description}}}\"
-url: \"{{{url}}}\"{{#aspectRatio}}
+url: \"{{{url}}}\"
+favicon: \"{{{favicon}}}\"{{#aspectRatio}}
 aspectRatio: "{{aspectRatio}}"{{/aspectRatio}}{{#metadata}}
 {{{metadata}}}{{/metadata}}
 \`\`\``;
@@ -31,17 +32,17 @@ export const HTMLTemplate = `<div class="embed">
       <div class="wt">
         <div class="t _f0 _ffsa _fsn _fwn">
           <div class="th _f1p _fsn _fwb">
-            <a href="{{{url}}}" target="_blank" rel="noopener" class="thl"
-              >{{title}}</a
-            >
+            <a href="{{{url}}}" target="_blank" rel="noopener" class="thl">
+              {{title}}
+            </a>
           </div>
           <div class="td">{{description}}</div>
           <div class="tf _f1m">
             <div class="tc">
-              <a href="{{{url}}}" target="_blank" rel="noopener" class="tw _f1m"
-                ><span class="twt">{{{url}}}</span
-                ><span class="twd">{{{url}}}</span></a
-              >
+              <a href="{{{url}}}" target="_blank" rel="noopener" class="tw _f1m">
+                {{#favicon}}<img src="{{{favicon}}}" alt="favicon" style="height: 16px; width: 16px; margin-right: 6px; vertical-align: middle;">{{/favicon}}
+                <span>{{{url}}}</span>
+              </a>
             </div>
           </div>
         </div>
@@ -108,8 +109,8 @@ export class EmbedInfo {
 	image: string;
 	description: string;
 	url: string;
-	createdby?: string;
 	parser?: string;
 	date?: string;
 	aspectRatio?: number; // Width/height ratio of the image
+	favicon?: string; // Website favicon URL
 }

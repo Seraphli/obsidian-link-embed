@@ -34,10 +34,7 @@ interface PasteInfo {
 export default class ObsidianLinkEmbedPlugin extends Plugin {
 	settings: ObsidianLinkEmbedPluginSettings;
 	pasteInfo: PasteInfo;
-	imageDimensionsCache: Map<
-		string,
-		{ width: number; height: number; aspectRatio: number }
-	>;
+	cache: Map<string, any>; // A unified cache for both image dimensions and favicons
 
 	async getText(editor: Editor): Promise<Selected> {
 		let selected = ExEditor.getSelectedText(editor, this.settings.debug);
@@ -60,8 +57,8 @@ export default class ObsidianLinkEmbedPlugin extends Plugin {
 			text: '',
 		};
 
-		// Initialize image dimensions cache
-		this.imageDimensionsCache = new Map();
+		// Initialize a unified cache for both image dimensions and favicons
+		this.cache = new Map();
 
 		this.registerEvent(
 			this.app.workspace.on(
@@ -123,6 +120,38 @@ export default class ObsidianLinkEmbedPlugin extends Plugin {
 					source.replace(/^\s+|\s+$/gm, ''),
 				) as EmbedInfo;
 
+				// Automatically fetch favicon for embeds that don't have one
+				if (!info.favicon && info.url) {
+					if (this.settings.debug) {
+						console.log(
+							'[Link Embed] Fetching missing favicon for:',
+							info.url,
+						);
+					}
+					try {
+						// Check cache directly with URL as the key if caching is enabled
+						if (
+							this.settings.useCache &&
+							this.cache.has(info.url)
+						) {
+							info.favicon = this.cache.get(info.url);
+							if (this.settings.debug) {
+								console.log(
+									'[Link Embed] Using cached favicon for:',
+									info.url,
+								);
+							}
+						} else {
+							info.favicon = await this.getFavicon(info.url);
+						}
+					} catch (error) {
+						console.error(
+							'[Link Embed] Error fetching favicon for existing embed:',
+							error,
+						);
+					}
+				}
+
 				// Process image path if it's a local file path
 				let imageUrl = info.image;
 				if (
@@ -156,10 +185,32 @@ export default class ObsidianLinkEmbedPlugin extends Plugin {
 					imageUrl
 				) {
 					try {
-						const dimensions = await getImageDimensions(
-							imageUrl,
-							this.imageDimensionsCache,
-						);
+						// Use imageUrl directly as the cache key
+						let dimensions;
+
+						// Check cache first if caching is enabled
+						if (
+							this.settings.useCache &&
+							this.cache.has(imageUrl)
+						) {
+							dimensions = this.cache.get(imageUrl);
+							if (this.settings.debug) {
+								console.log(
+									'[Link Embed] Using cached image dimensions for:',
+									imageUrl,
+								);
+							}
+						} else {
+							// Get dimensions and store in cache if enabled
+							dimensions = await getImageDimensions(
+								imageUrl,
+								this.settings.useCache ? this.cache : null,
+							);
+							if (dimensions && this.settings.useCache) {
+								this.cache.set(imageUrl, dimensions);
+							}
+						}
+
 						if (dimensions) {
 							aspectRatio = dimensions.aspectRatio;
 							if (this.settings.debug) {
@@ -198,6 +249,7 @@ export default class ObsidianLinkEmbedPlugin extends Plugin {
 					url: info.url,
 					respectAR: this.settings.respectImageAspectRatio,
 					calculatedWidth: calculatedWidth,
+					favicon: info.favicon,
 				};
 
 				const html = Mustache.render(HTMLTemplate, templateData);
@@ -205,29 +257,71 @@ export default class ObsidianLinkEmbedPlugin extends Plugin {
 				let parser = new DOMParser();
 				var doc = parser.parseFromString(html, 'text/html');
 				el.replaceWith(doc.body.firstChild);
-
-				// Log metadata information if debugging is enabled
-				if (
-					this.settings.debug &&
-					(info.createdby || info.parser || info.date)
-				) {
-					console.log('[Link Embed] Metadata:', {
-						createdby: info.createdby || 'unknown',
-						parser: info.parser || 'unknown',
-						date: info.date || 'unknown',
-					});
-				}
 			},
 		);
 
 		this.addSettingTab(new ObsidianLinkEmbedSettingTab(this.app, this));
 	}
 
+	// Fetch favicon with caching
+	async getFavicon(url: string): Promise<string> {
+		// Check cache first using the URL directly as the key if caching is enabled
+		if (this.settings.useCache && this.cache.has(url)) {
+			if (this.settings.debug) {
+				console.log('[Link Embed] Using cached favicon for:', url);
+			}
+			return this.cache.get(url);
+		}
+
+		try {
+			// Create a local parser to get favicon
+			const localParser = createParser(
+				'local',
+				this.settings,
+				this.app.vault,
+			) as any;
+			localParser.debug = this.settings.debug;
+
+			// Get HTML content
+			let html =
+				(await localParser.getHtmlByElectron(url)) ||
+				(await localParser.getHtmlByRequest(url));
+			if (html) {
+				const parser = new DOMParser();
+				const doc = parser.parseFromString(html, 'text/html');
+				const urlObj = new URL(url);
+
+				// Get favicon
+				const favicon = localParser.getFavicon(doc, urlObj);
+
+				// Store in cache if enabled
+				if (favicon && this.settings.useCache) {
+					this.cache.set(url, favicon);
+					if (this.settings.debug) {
+						console.log('[Link Embed] Cached favicon for:', url);
+					}
+					return favicon;
+				}
+
+				// Return the favicon even if not cached
+				if (favicon) {
+					return favicon;
+				}
+			}
+
+			// Return empty string if no favicon found
+			return '';
+		} catch (error) {
+			console.error('[Link Embed] Error fetching favicon:', error);
+			return '';
+		}
+	}
+
 	onunload() {
-		// Clear image dimensions cache to prevent memory leaks
-		if (this.imageDimensionsCache && this.imageDimensionsCache.size > 0) {
-			console.log('[Link Embed] Clearing image dimensions cache');
-			this.imageDimensionsCache.clear();
+		// Clear cache to prevent memory leaks
+		if (this.cache && this.cache.size > 0) {
+			console.log('[Link Embed] Clearing cache');
+			this.cache.clear();
 		}
 	}
 
@@ -298,6 +392,7 @@ export default class ObsidianLinkEmbedPlugin extends Plugin {
 				image: SPINNER,
 				description: `Fetching ${url}`,
 				url: url,
+				favicon: '',
 			}) + '\n';
 		editor.replaceSelection(dummyEmbed);
 		const endCursor = editor.getCursor();
@@ -413,6 +508,7 @@ export default class ObsidianLinkEmbedPlugin extends Plugin {
 					url: data.url,
 					metadata: metadata || false, // Ensure empty string becomes falsy for Mustache conditional
 					aspectRatio: data.aspectRatio,
+					favicon: data.favicon,
 				};
 				const embed = Mustache.render(template, escapedData) + '\n';
 				if (this.settings.delay > 0) {
