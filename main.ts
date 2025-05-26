@@ -5,6 +5,7 @@ import {
 	DEFAULT_SETTINGS,
 	ObsidianLinkEmbedPluginSettings,
 } from './src/settings';
+import { LocalParser } from './src/parsers/LocalParser';
 import { checkUrlValid } from './src/urlUtils';
 import { isUrl } from './src/urlUtils';
 import { embedUrl } from './src/embedUtils';
@@ -37,6 +38,9 @@ export default class ObsidianLinkEmbedPlugin extends Plugin {
 
 		// Initialize a unified cache for both image dimensions and favicons
 		this.cache = new Map();
+
+		// Initialize the LocalParser's limiter with the setting
+		LocalParser.initLimiter(this.settings.maxConcurrentLocalParsers);
 
 		// Register event handler for clipboard paste
 		this.registerEvent(
@@ -130,6 +134,8 @@ export default class ObsidianLinkEmbedPlugin extends Plugin {
 
 	async saveSettings() {
 		await this.saveData(this.settings);
+		// Update the LocalParser's limiter when settings change
+		LocalParser.initLimiter(this.settings.maxConcurrentLocalParsers);
 		if (this.settings.debug) {
 			console.log('[Link Embed] Settings saved:', this.settings);
 		}

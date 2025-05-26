@@ -1,9 +1,21 @@
 import { requestUrl } from 'obsidian';
 import { Parser, ParsedLinkData } from './parser';
+import { ConcurrencyLimiter } from '../utils/concurrencyLimiter';
 
 const electronPkg = require('electron');
 
 export class LocalParser extends Parser {
+	// Static limiter shared across all instances
+	private static limiter: ConcurrencyLimiter | null = null;
+
+	// Method to initialize the limiter with settings
+	public static initLimiter(maxConcurrency: number): void {
+		if (!LocalParser.limiter) {
+			LocalParser.limiter = new ConcurrencyLimiter(maxConcurrency);
+		} else {
+			LocalParser.limiter.setMaxConcurrency(maxConcurrency);
+		}
+	}
 	process(data: any): {
 		title: string;
 		image: string;
@@ -240,96 +252,109 @@ export class LocalParser extends Parser {
 	}
 
 	async getHtmlByRequest(url: string): Promise<string> {
-		try {
-			this.debugLog('[Link Embed] getHtmlByRequest - Fetching URL:', url);
-			const response = await requestUrl({ url: url });
-			const html = response.text;
+		// Use the limiter to control concurrency
+		return (
+			(await LocalParser.limiter?.enqueue(async () => {
+				try {
+					this.debugLog(
+						'[Link Embed] getHtmlByRequest - Fetching URL:',
+						url,
+					);
+					const response = await requestUrl({ url: url });
+					const html = response.text;
 
-			this.debugLog(
-				'[Link Embed] getHtmlByRequest - Successfully fetched HTML, size:',
-				html.length,
-			);
-			// Log response headers to check content type
-			this.debugLog(
-				'[Link Embed] getHtmlByRequest - Response headers:',
-				response.headers,
-			);
+					this.debugLog(
+						'[Link Embed] getHtmlByRequest - Successfully fetched HTML, size:',
+						html.length,
+					);
+					// Log response headers to check content type
+					this.debugLog(
+						'[Link Embed] getHtmlByRequest - Response headers:',
+						response.headers,
+					);
 
-			return html;
-		} catch (error) {
-			this.debugError(
-				'[Link Embed] getHtmlByRequest - Error fetching HTML:',
-				error,
-			);
-			return null;
-		}
+					return html;
+				} catch (error) {
+					this.debugError(
+						'[Link Embed] getHtmlByRequest - Error fetching HTML:',
+						error,
+					);
+					return null;
+				}
+			})) || null
+		);
 	}
 
 	async getHtmlByElectron(url: string): Promise<string> {
-		let window: any = null;
-		try {
-			this.debugLog(
-				'[Link Embed] getHtmlByElectron - Attempting to fetch URL:',
-				url,
-			);
-
-			const { remote } = electronPkg;
-			const { BrowserWindow } = remote;
-
-			window = new BrowserWindow({
-				width: 1366,
-				height: 768,
-				webPreferences: {
-					nodeIntegration: false,
-					contextIsolation: true,
-					sandbox: true,
-					images: false,
-				},
-				show: false,
-			});
-			window.webContents.setAudioMuted(true);
-
-			await new Promise<void>((resolve, reject) => {
-				window.webContents.on('did-finish-load', (e: any) => {
+		// Use the limiter to control concurrency
+		return (
+			(await LocalParser.limiter?.enqueue(async () => {
+				let window: any = null;
+				try {
 					this.debugLog(
-						'[Link Embed] getHtmlByElectron - Page loaded successfully',
+						'[Link Embed] getHtmlByElectron - Attempting to fetch URL:',
+						url,
 					);
-					resolve(e);
-				});
-				window.webContents.on('did-fail-load', (e: any) => {
+
+					const { remote } = electronPkg;
+					const { BrowserWindow } = remote;
+
+					window = new BrowserWindow({
+						width: 1366,
+						height: 768,
+						webPreferences: {
+							nodeIntegration: false,
+							contextIsolation: true,
+							sandbox: true,
+							images: false,
+						},
+						show: false,
+					});
+					window.webContents.setAudioMuted(true);
+
+					await new Promise<void>((resolve, reject) => {
+						window.webContents.on('did-finish-load', (e: any) => {
+							this.debugLog(
+								'[Link Embed] getHtmlByElectron - Page loaded successfully',
+							);
+							resolve(e);
+						});
+						window.webContents.on('did-fail-load', (e: any) => {
+							this.debugError(
+								'[Link Embed] getHtmlByElectron - Page failed to load:',
+								e,
+							);
+							reject(e);
+						});
+
+						this.debugLog(
+							'[Link Embed] getHtmlByElectron - Loading URL:',
+							url,
+						);
+						window.loadURL(url);
+					});
+
+					this.debugLog(
+						'[Link Embed] getHtmlByElectron - Executing JavaScript to get HTML content',
+					);
+
+					let doc = await window.webContents.executeJavaScript(
+						'document.documentElement.outerHTML;',
+					);
+					window.close();
+					return doc;
+				} catch (ex) {
 					this.debugError(
-						'[Link Embed] getHtmlByElectron - Page failed to load:',
-						e,
+						'[Link Embed] getHtmlByElectron - Failed to use electron:',
+						ex,
 					);
-					reject(e);
-				});
-
-				this.debugLog(
-					'[Link Embed] getHtmlByElectron - Loading URL:',
-					url,
-				);
-				window.loadURL(url);
-			});
-
-			this.debugLog(
-				'[Link Embed] getHtmlByElectron - Executing JavaScript to get HTML content',
-			);
-
-			let doc = await window.webContents.executeJavaScript(
-				'document.documentElement.outerHTML;',
-			);
-			window.close();
-			return doc;
-		} catch (ex) {
-			this.debugError(
-				'[Link Embed] getHtmlByElectron - Failed to use electron:',
-				ex,
-			);
-			if (window) {
-				window.close();
-			}
-			return null;
-		}
+					if (window) {
+						window.close();
+					}
+					return null;
+				}
+			})) || null
+		);
 	}
 
 	async parse(url: string): Promise<ParsedLinkData> {

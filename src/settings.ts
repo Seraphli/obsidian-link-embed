@@ -23,6 +23,7 @@ export interface ObsidianLinkEmbedPluginSettings {
 	respectImageAspectRatio: boolean;
 	useCache: boolean;
 	enableFavicon: boolean;
+	maxConcurrentLocalParsers: number;
 }
 
 export const DEFAULT_SETTINGS: ObsidianLinkEmbedPluginSettings = {
@@ -44,6 +45,7 @@ export const DEFAULT_SETTINGS: ObsidianLinkEmbedPluginSettings = {
 	respectImageAspectRatio: true,
 	useCache: true,
 	enableFavicon: true,
+	maxConcurrentLocalParsers: 1,
 };
 
 export class ObsidianLinkEmbedSettingTab extends PluginSettingTab {
@@ -343,6 +345,24 @@ export class ObsidianLinkEmbedSettingTab extends PluginSettingTab {
 					.setValue(this.plugin.settings.jsonlinkApiKey)
 					.onChange((value) => {
 						this.plugin.settings.jsonlinkApiKey = value;
+						this.plugin.saveSettings();
+					});
+			});
+
+		containerEl.createEl('h3', { text: 'Performance Settings' });
+
+		new Setting(containerEl)
+			.setName('Max Concurrent Local Parsers')
+			.setDesc(
+				'Maximum number of simultaneous local parsing operations. Lower values reduce system load but might make link embeds appear more slowly.',
+			)
+			.addSlider((slider) => {
+				slider
+					.setLimits(1, 10, 1)
+					.setValue(this.plugin.settings.maxConcurrentLocalParsers)
+					.setDynamicTooltip()
+					.onChange((value) => {
+						this.plugin.settings.maxConcurrentLocalParsers = value;
 						this.plugin.saveSettings();
 					});
 			});
