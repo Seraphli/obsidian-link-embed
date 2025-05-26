@@ -22,6 +22,7 @@ export interface ObsidianLinkEmbedPluginSettings {
 	imageFolderPath: string;
 	respectImageAspectRatio: boolean;
 	useCache: boolean;
+	enableFavicon: boolean;
 }
 
 export const DEFAULT_SETTINGS: ObsidianLinkEmbedPluginSettings = {
@@ -42,6 +43,7 @@ export const DEFAULT_SETTINGS: ObsidianLinkEmbedPluginSettings = {
 	imageFolderPath: 'link-embed-images',
 	respectImageAspectRatio: true,
 	useCache: true,
+	enableFavicon: true,
 };
 
 export class ObsidianLinkEmbedSettingTab extends PluginSettingTab {
@@ -261,6 +263,18 @@ export class ObsidianLinkEmbedSettingTab extends PluginSettingTab {
 					.setValue(this.plugin.settings.useCache)
 					.onChange((value) => {
 						this.plugin.settings.useCache = value;
+						this.plugin.saveSettings();
+					});
+			});
+
+		new Setting(containerEl)
+			.setName('Enable Favicon')
+			.setDesc('When enabled, favicons will be displayed in link embeds.')
+			.addToggle((value) => {
+				value
+					.setValue(this.plugin.settings.enableFavicon)
+					.onChange((value) => {
+						this.plugin.settings.enableFavicon = value;
 						this.plugin.saveSettings();
 					});
 			});

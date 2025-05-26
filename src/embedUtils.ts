@@ -1,7 +1,6 @@
 import { Editor, Notice, TFile, Vault } from 'obsidian';
 import Mustache from 'mustache';
 import { Selected } from './exEditor';
-import { isUrl } from './urlUtils';
 import { errorNotice } from './errorUtils';
 import { MarkdownTemplate, SPINNER, EmbedInfo } from './constants';
 import { formatDate } from './utils';
@@ -33,7 +32,11 @@ export async function getFavicon(
 
 	try {
 		// Create a local parser to get favicon
-		const localParser = createParser('local', settings, null) as LocalParser;
+		const localParser = createParser(
+			'local',
+			settings,
+			null,
+		) as LocalParser;
 		localParser.debug = debug;
 
 		// Get HTML content
@@ -183,7 +186,7 @@ export async function embedUrl(
 				url: data.url,
 				metadata: metadata || false, // Ensure empty string becomes falsy for Mustache conditional
 				aspectRatio: data.aspectRatio,
-				favicon: data.favicon,
+				favicon: settings.enableFavicon ? data.favicon : '', // Only include favicon if enabled in settings
 			};
 
 			const embed = Mustache.render(template, escapedData) + '\n';

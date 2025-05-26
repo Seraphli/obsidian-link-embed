@@ -42,7 +42,7 @@ function renderEmbed(
 		url: renderInfo.url,
 		respectAR: settings.respectImageAspectRatio,
 		calculatedWidth: calculatedWidth,
-		favicon: renderInfo.favicon,
+		favicon: settings.enableFavicon ? renderInfo.favicon : '', // Only include favicon if enabled
 	};
 
 	const html = Mustache.render(HTMLTemplate, templateData);
@@ -142,8 +142,8 @@ export async function handleEmbedCodeBlock(
 	// Collect all promises for async operations
 	const promises: Promise<void>[] = [];
 
-	// Check if favicon is missing - use SPINNER for first render
-	if (!info.favicon && info.url) {
+	// Check if favicon is missing and enabled - use SPINNER for first render
+	if (!info.favicon && info.url && settings.enableFavicon) {
 		if (settings.debug) {
 			console.log('[Link Embed] Fetching missing favicon for:', info.url);
 		}
