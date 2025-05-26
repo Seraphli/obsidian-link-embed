@@ -1,6 +1,10 @@
 import { Editor, Plugin, MarkdownView } from 'obsidian';
 import { ExEditor } from './src/exEditor';
-import { ObsidianLinkEmbedSettingTab, DEFAULT_SETTINGS } from './src/settings';
+import {
+	ObsidianLinkEmbedSettingTab,
+	DEFAULT_SETTINGS,
+	ObsidianLinkEmbedPluginSettings,
+} from './src/settings';
 import { checkUrlValid } from './src/urlUtils';
 import { isUrl } from './src/urlUtils';
 import { embedUrl } from './src/embedUtils';
@@ -19,7 +23,7 @@ interface PasteInfo {
 }
 
 export default class ObsidianLinkEmbedPlugin extends Plugin {
-	settings: any;
+	settings: ObsidianLinkEmbedPluginSettings;
 	pasteInfo: PasteInfo;
 	cache: Map<string, any>; // A unified cache for both image dimensions and favicons
 
@@ -122,13 +126,12 @@ export default class ObsidianLinkEmbedPlugin extends Plugin {
 			DEFAULT_SETTINGS,
 			await this.loadData(),
 		);
-
-		// Add access to app within settings object for convenience
-		this.settings.app = this.app;
-		this.settings.vault = this.app.vault;
 	}
 
 	async saveSettings() {
 		await this.saveData(this.settings);
+		if (this.settings.debug) {
+			console.log('[Link Embed] Settings saved:', this.settings);
+		}
 	}
 }

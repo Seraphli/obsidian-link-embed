@@ -1,11 +1,58 @@
-import { Editor, MarkdownView, parseYaml, stringifyYaml } from 'obsidian';
-import { embedUrl, getFavicon } from './embedUtils';
+import {
+	Editor,
+	MarkdownView,
+	parseYaml,
+	MarkdownPostProcessorContext,
+} from 'obsidian';
+import { getFavicon } from './embedUtils';
 import { getImageDimensions } from './parsers';
-import { EmbedInfo } from './constants';
+import { EmbedInfo, SPINNER, HTMLTemplate } from './constants';
 import Mustache from 'mustache';
 import { ObsidianLinkEmbedPluginSettings } from './settings';
 import { imageFileToBase64 } from './parsers';
-import { HTMLTemplate } from './constants';
+
+/**
+ * Renders an embed with the given information
+ *
+ * @param renderInfo The embed information to render
+ * @param imageUrl The URL of the image to display
+ * @param aspectRatio The aspect ratio for the image, if known
+ * @param el The HTML element to replace with the rendered embed
+ * @param settings Plugin settings
+ * @returns The new HTML element that replaced the original element
+ */
+function renderEmbed(
+	renderInfo: EmbedInfo,
+	imageUrl: string,
+	aspectRatio: number | undefined,
+	el: HTMLElement,
+	settings: ObsidianLinkEmbedPluginSettings,
+): HTMLElement {
+	// Calculate width based on aspect ratio
+	const baseWidth = 160;
+	const calculatedWidth = aspectRatio
+		? Math.round((baseWidth * 100) / aspectRatio)
+		: baseWidth * 100;
+
+	// Prepare template data
+	const templateData = {
+		title: renderInfo.title,
+		image: imageUrl,
+		description: renderInfo.description,
+		url: renderInfo.url,
+		respectAR: settings.respectImageAspectRatio,
+		calculatedWidth: calculatedWidth,
+		favicon: renderInfo.favicon,
+	};
+
+	const html = Mustache.render(HTMLTemplate, templateData);
+
+	let parser = new DOMParser();
+	var doc = parser.parseFromString(html, 'text/html');
+	const newEl = doc.body.firstChild as HTMLElement;
+	el.replaceWith(newEl);
+	return newEl;
+}
 
 /**
  * Handler for the editor-paste event.
@@ -47,56 +94,41 @@ export function handleEditorPaste(
 export async function handleEmbedCodeBlock(
 	source: string,
 	el: HTMLElement,
-	ctx: any,
+	ctx: MarkdownPostProcessorContext,
 	settings: ObsidianLinkEmbedPluginSettings,
 	cache: Map<string, any>,
 	vault: any,
 ): Promise<void> {
 	const info = parseYaml(source.replace(/^\s+|\s+$/gm, '')) as EmbedInfo;
 
-	// Automatically fetch favicon for embeds that don't have one
-	if (!info.favicon && info.url) {
-		if (settings.debug) {
-			console.log('[Link Embed] Fetching missing favicon for:', info.url);
-		}
-		try {
-			// Check cache directly with URL as the key if caching is enabled
-			if (settings.useCache && cache.has(info.url)) {
-				info.favicon = cache.get(info.url);
-				if (settings.debug) {
-					console.log(
-						'[Link Embed] Using cached favicon for:',
-						info.url,
-					);
-				}
-			} else {
-				info.favicon = await getFavicon(
-					info.url,
-					settings,
-					cache,
-					settings.debug,
-				);
-			}
-		} catch (error) {
-			console.error(
-				'[Link Embed] Error fetching favicon for existing embed:',
-				error,
-			);
-		}
+	// Check if this is a dummy embed (produced by embedUrl function)
+	const isDummyEmbed =
+		info.title === 'Fetching' &&
+		info.image === SPINNER &&
+		info.description?.startsWith('Fetching ');
+
+	// If this is a dummy embed, just render it directly without any expensive operations
+	if (isDummyEmbed) {
+		// Render the dummy embed with default aspect ratio
+		renderEmbed(info, info.image, 1, el, settings);
+		return; // Exit early, skip all the fetching operations
 	}
 
+	// For normal embeds, proceed with two-phase rendering
+	const originalInfo = { ...info }; // Store original info for second render
+
 	// Process image path if it's a local file path
-	let imageUrl = info.image;
 	if (
-		imageUrl &&
-		!imageUrl.startsWith('http') &&
-		!imageUrl.startsWith('data:')
+		info.image &&
+		!info.image.startsWith('http') &&
+		!info.image.startsWith('data:')
 	) {
 		try {
 			// Convert local image path to base64 data URL
-			const base64Image = await imageFileToBase64(vault, imageUrl);
+			const base64Image = await imageFileToBase64(vault, info.image);
 			if (base64Image) {
-				imageUrl = base64Image;
+				info.image = base64Image; // Update info for initial render
+				originalInfo.image = base64Image; // Update original info for final render
 			}
 		} catch (error) {
 			console.error(
@@ -107,76 +139,162 @@ export async function handleEmbedCodeBlock(
 		}
 	}
 
-	// Calculate aspect ratio if not present but feature is enabled
-	let aspectRatio = info.aspectRatio;
-	if (settings.respectImageAspectRatio && !aspectRatio && imageUrl) {
-		try {
-			// Use imageUrl directly as the cache key
-			let dimensions;
+	// Collect all promises for async operations
+	const promises: Promise<void>[] = [];
 
+	// Check if favicon is missing - use SPINNER for first render
+	if (!info.favicon && info.url) {
+		if (settings.debug) {
+			console.log('[Link Embed] Fetching missing favicon for:', info.url);
+		}
+
+		// Set placeholder for initial render
+		info.favicon = SPINNER;
+
+		// Fetch real favicon in the background
+		try {
 			// Check cache first if caching is enabled
-			if (settings.useCache && cache.has(imageUrl)) {
-				dimensions = cache.get(imageUrl);
+			if (settings.useCache && cache.has(info.url)) {
+				const cachedFavicon = cache.get(info.url);
+				originalInfo.favicon = cachedFavicon;
+				info.favicon = cachedFavicon; // Also update info for initial render
 				if (settings.debug) {
 					console.log(
-						'[Link Embed] Using cached image dimensions for:',
-						imageUrl,
+						'[Link Embed] Using cached favicon for:',
+						info.url,
 					);
 				}
 			} else {
-				// Get dimensions and store in cache if enabled
-				dimensions = await getImageDimensions(
-					imageUrl,
-					settings.useCache ? cache : null,
-				);
-				if (dimensions && settings.useCache) {
-					cache.set(imageUrl, dimensions);
-				}
-			}
-
-			if (dimensions) {
-				aspectRatio = dimensions.aspectRatio;
-				if (settings.debug) {
-					console.log(
-						'[Link Embed] Calculated image aspect ratio:',
-						aspectRatio,
-					);
-				}
+				// Add promise for favicon fetching
+				const faviconPromise = getFavicon(
+					info.url,
+					settings,
+					cache,
+					settings.debug,
+				)
+					.then((favicon) => {
+						originalInfo.favicon = favicon;
+						info.favicon = favicon; // Also update info for initial render if it happens after this completes
+						// Store in cache if enabled
+						if (settings.useCache && favicon) {
+							cache.set(info.url, favicon);
+							if (settings.debug) {
+								console.log(
+									'[Link Embed] Cached favicon for:',
+									info.url,
+								);
+							}
+						}
+					})
+					.catch((error) => {
+						console.error(
+							'[Link Embed] Error fetching favicon for existing embed:',
+							error,
+						);
+					});
+				promises.push(faviconPromise);
 			}
 		} catch (error) {
 			console.error(
-				'[Link Embed] Error calculating dynamic aspect ratio at ' +
-					(ctx.sourcePath
-						? ctx.sourcePath +
-						  ':' +
-						  (ctx.getSectionInfo(el)?.lineStart + 1 || 'unknown')
-						: 'unknown location') +
-					':',
+				'[Link Embed] Error setting up favicon fetching:',
 				error,
 			);
 		}
 	}
 
-	// Calculate width based on aspect ratio
-	const baseWidth = 160;
-	const calculatedWidth = Math.round((baseWidth * 100) / aspectRatio);
+	// Check if aspect ratio needs to be calculated - use default for first render
+	if (settings.respectImageAspectRatio && !info.aspectRatio && info.image) {
+		// Set placeholder for initial render
+		info.aspectRatio = 1;
 
-	// Use the processed image URL and any aspect ratio information
-	const templateData = {
-		title: info.title,
-		image: imageUrl,
-		description: info.description,
-		url: info.url,
-		respectAR: settings.respectImageAspectRatio,
-		calculatedWidth: calculatedWidth,
-		favicon: info.favicon,
-	};
+		try {
+			// Check cache first if caching is enabled
+			if (settings.useCache && cache.has(info.image)) {
+				const dimensions = cache.get(info.image);
+				if (dimensions) {
+					originalInfo.aspectRatio = dimensions.aspectRatio;
+					info.aspectRatio = dimensions.aspectRatio;
+				}
 
-	const html = Mustache.render(HTMLTemplate, templateData);
+				if (settings.debug) {
+					console.log(
+						'[Link Embed] Using cached image dimensions for:',
+						info.image,
+					);
+				}
+			} else {
+				// Add promise for aspect ratio calculation
+				const aspectRatioPromise = getImageDimensions(
+					info.image,
+					settings.useCache ? cache : null,
+				)
+					.then((dimensions) => {
+						if (dimensions) {
+							originalInfo.aspectRatio = dimensions.aspectRatio;
+							if (settings.useCache) {
+								cache.set(info.image, dimensions);
+							}
 
-	let parser = new DOMParser();
-	var doc = parser.parseFromString(html, 'text/html');
-	el.replaceWith(doc.body.firstChild);
+							if (settings.debug) {
+								console.log(
+									'[Link Embed] Calculated image aspect ratio:',
+									originalInfo.aspectRatio,
+								);
+							}
+						}
+					})
+					.catch((error) => {
+						console.error(
+							'[Link Embed] Error calculating dynamic aspect ratio at ' +
+								(ctx.sourcePath
+									? ctx.sourcePath +
+									  ':' +
+									  (ctx.getSectionInfo(el)?.lineStart + 1 ||
+											'unknown')
+									: 'unknown location') +
+								':',
+							error,
+						);
+					});
+				promises.push(aspectRatioPromise);
+			}
+		} catch (error) {
+			console.error(
+				'[Link Embed] Error setting up aspect ratio calculation:',
+				error,
+			);
+		}
+	}
+
+	// First render with placeholder values
+	const newEl = renderEmbed(info, info.image, info.aspectRatio, el, settings);
+
+	// If we have any promises, wait for all to complete then do final render
+	if (promises.length > 0) {
+		Promise.all(promises)
+			.then(() => {
+				// Final render with all real values
+				renderEmbed(
+					originalInfo,
+					originalInfo.image,
+					originalInfo.aspectRatio,
+					newEl,
+					settings,
+				);
+				if (settings.debug) {
+					console.log(
+						'[Link Embed] Final render completed with real values:',
+						originalInfo,
+					);
+				}
+			})
+			.catch((error) => {
+				console.error(
+					'[Link Embed] Error during data fetching:',
+					error,
+				);
+			});
+	}
 }
 
 /**

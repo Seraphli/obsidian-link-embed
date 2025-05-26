@@ -5,7 +5,7 @@ import { isUrl } from './urlUtils';
 import { errorNotice } from './errorUtils';
 import { MarkdownTemplate, SPINNER, EmbedInfo } from './constants';
 import { formatDate } from './utils';
-import { createParser } from './parsers';
+import { createParser, LocalParser } from './parsers';
 
 /**
  * Fetch and return a favicon URL for the given website URL.
@@ -33,7 +33,7 @@ export async function getFavicon(
 
 	try {
 		// Create a local parser to get favicon
-		const localParser = createParser('local', settings, null) as any;
+		const localParser = createParser('local', settings, null) as LocalParser;
 		localParser.debug = debug;
 
 		// Get HTML content

@@ -166,34 +166,6 @@ export class LocalParser extends Parser {
 		);
 		this.debugLog('[Link Embed] Favicon - Base URL:', base);
 
-		// Check for apple-touch-icon
-		const appleIcon = doc.querySelector<HTMLLinkElement>(
-			'link[rel="apple-touch-icon"]',
-		);
-		if (appleIcon) {
-			const hrefAttr = appleIcon.getAttribute('href');
-			this.debugLog(
-				'[Link Embed] Favicon - Found apple-touch-icon:',
-				hrefAttr,
-			);
-			if (hrefAttr) {
-				try {
-					const resolvedUrl = new URL(hrefAttr, base).href;
-					this.debugLog(
-						'[Link Embed] Favicon - Resolved apple-touch-icon URL:',
-						resolvedUrl,
-					);
-					return resolvedUrl;
-				} catch (error) {
-					this.debugError(
-						'[Link Embed] Favicon - Error resolving apple-touch-icon URL:',
-						error,
-					);
-					return hrefAttr;
-				}
-			}
-		}
-
 		// Check for standard favicon link
 		const faviconLink = doc.querySelector<HTMLLinkElement>(
 			'link[rel="icon"], link[rel="shortcut icon"]',
@@ -215,6 +187,34 @@ export class LocalParser extends Parser {
 				} catch (error) {
 					this.debugError(
 						'[Link Embed] Favicon - Error resolving standard favicon URL:',
+						error,
+					);
+					return hrefAttr;
+				}
+			}
+		}
+
+		// Check for apple-touch-icon
+		const appleIcon = doc.querySelector<HTMLLinkElement>(
+			'link[rel="apple-touch-icon"]',
+		);
+		if (appleIcon) {
+			const hrefAttr = appleIcon.getAttribute('href');
+			this.debugLog(
+				'[Link Embed] Favicon - Found apple-touch-icon:',
+				hrefAttr,
+			);
+			if (hrefAttr) {
+				try {
+					const resolvedUrl = new URL(hrefAttr, base).href;
+					this.debugLog(
+						'[Link Embed] Favicon - Resolved apple-touch-icon URL:',
+						resolvedUrl,
+					);
+					return resolvedUrl;
+				} catch (error) {
+					this.debugError(
+						'[Link Embed] Favicon - Error resolving apple-touch-icon URL:',
 						error,
 					);
 					return hrefAttr;
