@@ -190,13 +190,61 @@ export function generateEmbedMarkdown(
 }
 
 /**
+ * Tries to parse a URL using multiple parsers, returning the first successful result
+ *
+ * @param url The URL to parse
+ * @param selectedParsers Array of parser types to try
+ * @param settings Plugin settings
+ * @param locationInfo Location info for error reporting
+ * @returns An object containing the parsed data and the parser that was successful
+ * @throws Error if all parsers fail
+ */
+export async function tryParsers(
+	url: string,
+	selectedParsers: string[],
+	settings: any,
+	locationInfo: string,
+): Promise<{ data: any; selectedParser: string }> {
+	let idx = 0;
+	while (idx < selectedParsers.length) {
+		const selectedParser = selectedParsers[idx];
+		if (settings.debug) {
+			console.log('[Link Embed] Parser:', selectedParser);
+		}
+
+		try {
+			// Create parser instance on demand
+			const parser = createParser(selectedParser, settings, null);
+			parser.debug = settings.debug;
+			parser.location = locationInfo; // Pass location for error reporting
+
+			const data = await parser.parse(url);
+			if (settings.debug) {
+				console.log('[Link Embed] Meta data:', data);
+			}
+
+			// Return successful result
+			return { data, selectedParser };
+		} catch (error) {
+			console.log('[Link Embed] Error:', error);
+			idx += 1;
+			if (idx === selectedParsers.length) {
+				// If this was the last parser, propagate the error
+				throw error;
+			}
+		}
+	}
+	// This shouldn't be reached but TypeScript needs it
+	throw new Error('All parsers failed');
+}
+
+/**
  * Refreshes an embed by fetching new metadata and replacing the code block
  *
  * @param url The URL to refresh
  * @param element The element containing the embed
  * @param ctx The markdown post processor context
  * @param settings Plugin settings
- * @param cache Cache object to use
  * @param vault The vault instance
  */
 export async function refreshEmbed(
@@ -204,7 +252,6 @@ export async function refreshEmbed(
 	element: HTMLElement,
 	ctx: MarkdownPostProcessorContext,
 	settings: ObsidianLinkEmbedPluginSettings,
-	cache: Map<string, any>,
 	vault: any,
 ): Promise<void> {
 	try {
@@ -226,6 +273,9 @@ export async function refreshEmbed(
 			return;
 		}
 
+		// Create location info string from section info for error reporting
+		const locationInfo = `${ctx.sourcePath}:${sectionInfo.lineStart}`;
+
 		// Get file content and find the code block
 		const content = await vault.read(file);
 		const lines = content.split('\n');
@@ -233,54 +283,48 @@ export async function refreshEmbed(
 		const endLine = sectionInfo.lineEnd + 1;
 		const oldEmbed = lines.slice(startLine, endLine).join('\n');
 
-		// Create parsers to fetch new metadata
-		const primaryParser = createParser(settings.primary, settings, null);
-		let data;
-
 		try {
-			// Try primary parser first
-			data = await primaryParser.parse(url);
-		} catch (error) {
-			// If primary fails, try backup parser
-			console.error(
-				`[Link Embed] Primary parser failed: ${error}. Trying backup...`,
+			// Try to parse the URL using the configured parsers
+			const { data, selectedParser } = await tryParsers(
+				url,
+				[settings.primary, settings.backup],
+				settings,
+				locationInfo,
 			);
-			const backupParser = createParser(settings.backup, settings, null);
-			data = await backupParser.parse(url);
-		}
 
-		if (!data) {
-			console.error('[Link Embed] Both parsers failed to fetch metadata');
-			return;
-		}
+			// Create new embed code block
+			const newEmbed = generateEmbedMarkdown(
+				data,
+				settings,
+				selectedParser,
+			);
 
-		// Create new embed code block
-		const newEmbed = generateEmbedMarkdown(
-			data,
-			settings,
-			settings.primary,
-		);
+			// Check if the old embed has indentation
+			let indentation = '';
+			const firstLineMatch = oldEmbed.match(/^(\s+)/);
+			if (firstLineMatch && firstLineMatch[1]) {
+				indentation = firstLineMatch[1];
+			}
 
-		// Check if the old embed has indentation
-		let indentation = '';
-		const firstLineMatch = oldEmbed.match(/^(\s+)/);
-		if (firstLineMatch && firstLineMatch[1]) {
-			indentation = firstLineMatch[1];
-		}
+			// Apply indentation to each line of the new embed
+			const indentedNewEmbed = newEmbed
+				.trimEnd() // Remove trailing newlines
+				.split('\n')
+				.map((line) => indentation + line)
+				.join('\n');
 
-		// Apply indentation to each line of the new embed
-		const indentedNewEmbed = newEmbed
-			.trimEnd() // Remove trailing newlines
-			.split('\n')
-			.map((line) => indentation + line)
-			.join('\n');
+			// Replace the old embed with the new one, preserving indentation
+			const newContent = content.replace(oldEmbed, indentedNewEmbed);
+			await vault.modify(file, newContent);
 
-		// Replace the old embed with the new one, preserving indentation
-		const newContent = content.replace(oldEmbed, indentedNewEmbed);
-		await vault.modify(file, newContent);
-
-		if (settings.debug) {
-			console.log('[Link Embed] Successfully refreshed embed');
+			if (settings.debug) {
+				console.log('[Link Embed] Successfully refreshed embed');
+			}
+		} catch (error) {
+			console.error(
+				'[Link Embed] All parsers failed to fetch metadata:',
+				error,
+			);
 		}
 	} catch (error) {
 		console.error('[Link Embed] Error refreshing embed:', error);
@@ -294,7 +338,6 @@ export async function refreshEmbed(
  * @param embedInfo The embed information
  * @param ctx The markdown post processor context
  * @param settings Plugin settings
- * @param cache Cache object to use
  * @param vault The vault instance
  */
 export function addRefreshButtonHandler(
@@ -302,20 +345,12 @@ export function addRefreshButtonHandler(
 	embedInfo: EmbedInfo,
 	ctx: MarkdownPostProcessorContext,
 	settings: ObsidianLinkEmbedPluginSettings,
-	cache: Map<string, any>,
 	vault: any,
 ): void {
 	const refreshButton = element.querySelector('.refresh-button');
 	if (refreshButton && embedInfo.url) {
 		refreshButton.addEventListener('click', async () => {
-			await refreshEmbed(
-				embedInfo.url,
-				element,
-				ctx,
-				settings,
-				cache,
-				vault,
-			);
+			await refreshEmbed(embedInfo.url, element, ctx, settings, vault);
 		});
 	}
 }
@@ -327,7 +362,6 @@ export function addRefreshButtonHandler(
  * @param selected The selected text and boundary information
  * @param selectedParsers Array of parser types to try
  * @param settings Plugin settings
- * @param cache Cache object to use
  * @param inPlace Whether to replace the selection with the embed
  */
 export async function embedUrl(
@@ -335,7 +369,6 @@ export async function embedUrl(
 	selected: Selected,
 	selectedParsers: string[],
 	settings: any,
-	cache: Map<string, any>,
 	inPlace: boolean = false,
 ): Promise<void> {
 	// Get the current file path and cursor position for error reporting
@@ -380,50 +413,37 @@ export async function embedUrl(
 	const endCursor = editor.getCursor();
 
 	// if we can fetch result, we can replace the embed with true content
-	let idx = 0;
-	while (idx < selectedParsers.length) {
-		const selectedParser = selectedParsers[idx];
-		if (settings.debug) {
-			console.log('[Link Embed] Parser:', selectedParser);
+	try {
+		// Try to parse the URL using the provided parsers
+		const { data, selectedParser } = await tryParsers(
+			url,
+			selectedParsers,
+			settings,
+			locationInfo,
+		);
+
+		// Generate embed markdown
+		const embed = generateEmbedMarkdown(data, settings, selectedParser);
+
+		if (settings.delay > 0) {
+			await new Promise((f) => setTimeout(f, settings.delay));
 		}
-		try {
-			// Create parser instance on demand
-			const parser = createParser(selectedParser, settings, null);
-			parser.debug = settings.debug;
-			parser.location = locationInfo; // Pass location for error reporting
 
-			const data = await parser.parse(url);
-			if (settings.debug) {
-				console.log('[Link Embed] Meta data:', data);
-			}
-
-			// Generate embed markdown
-			const embed = generateEmbedMarkdown(data, settings, selectedParser);
-
-			if (settings.delay > 0) {
-				await new Promise((f) => setTimeout(f, settings.delay));
-			}
-
-			// before replacing, check whether dummy is deleted or modified
-			const dummy = editor.getRange(startCursor, endCursor);
-			if (dummy == dummyEmbed) {
-				editor.replaceRange(embed, startCursor, endCursor);
-				console.log(`[Link Embed] Parser ${selectedParser} done`);
-			} else {
-				new Notice(
-					`Dummy preview has been deleted or modified. Replacing is cancelled.`,
-				);
-			}
-			break;
-		} catch (error) {
-			console.log('[Link Embed] Error:', error);
-			idx += 1;
-			if (idx === selectedParsers.length) {
-				errorNotice(
-					error instanceof Error ? error : new Error(String(error)),
-					settings.debug,
-				);
-			}
+		// before replacing, check whether dummy is deleted or modified
+		const dummy = editor.getRange(startCursor, endCursor);
+		if (dummy == dummyEmbed) {
+			editor.replaceRange(embed, startCursor, endCursor);
+			console.log(`[Link Embed] Parser ${selectedParser} done`);
+		} else {
+			new Notice(
+				`Dummy preview has been deleted or modified. Replacing is cancelled.`,
+			);
 		}
+	} catch (error) {
+		console.log('[Link Embed] Error:', error);
+		errorNotice(
+			error instanceof Error ? error : new Error(String(error)),
+			settings.debug,
+		);
 	}
 }

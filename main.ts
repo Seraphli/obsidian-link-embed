@@ -76,7 +76,6 @@ export default class ObsidianLinkEmbedPlugin extends Plugin {
 					checkUrlValid,
 					embedUrl,
 					this.settings,
-					this.cache,
 				);
 			},
 		});
@@ -92,7 +91,6 @@ export default class ObsidianLinkEmbedPlugin extends Plugin {
 					checkUrlValid,
 					embedUrl,
 					this.settings,
-					this.cache,
 				),
 			});
 		});

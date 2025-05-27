@@ -156,7 +156,7 @@ export abstract class Parser {
 				}
 			} catch (error) {
 				console.error(
-					`[Link Embed] Error calculating image aspect ratio in ${parserType} at ${this.location}]:`,
+					`[Link Embed] Error calculating image aspect ratio in ${parserType} at ${this.location}:`,
 					error,
 				);
 			}

@@ -66,7 +66,6 @@ export default class EmbedSuggest extends EditorSuggest<IDateCompletion> {
 				},
 				[this.plugin.settings.primary, this.plugin.settings.backup],
 				this.plugin.settings,
-				this.plugin.cache,
 				true,
 			);
 		} else if (suggestion.choice == 'Create Markdown Link') {
@@ -170,7 +169,6 @@ export default class EmbedSuggest extends EditorSuggest<IDateCompletion> {
 					},
 					[this.plugin.settings.primary, this.plugin.settings.backup],
 					this.plugin.settings,
-					this.plugin.cache,
 					true,
 				);
 				return null;

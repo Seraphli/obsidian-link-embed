@@ -8,7 +8,6 @@ import {
 	getFavicon,
 	renderEmbed,
 	addRefreshButtonHandler,
-	refreshEmbed,
 } from './embedUtils';
 import { getImageDimensions, createParser } from './parsers';
 import { EmbedInfo, SPINNER } from './constants';
@@ -51,6 +50,7 @@ export function handleEditorPaste(
  * @param ctx The context object
  * @param settings Plugin settings
  * @param cache Cache object to use
+ * @param vault The vault instance
  */
 export async function handleEmbedCodeBlock(
 	source: string,
@@ -231,7 +231,7 @@ export async function handleEmbedCodeBlock(
 	const newEl = renderEmbed(info, info.image, info.aspectRatio, el, settings);
 
 	// Add handler to the initial render
-	addRefreshButtonHandler(newEl, info, ctx, settings, cache, vault);
+	addRefreshButtonHandler(newEl, info, ctx, settings, vault);
 
 	// If we have any promises, wait for all to complete then do final render
 	if (promises.length > 0) {
@@ -252,7 +252,6 @@ export async function handleEmbedCodeBlock(
 					originalInfo,
 					ctx,
 					settings,
-					cache,
 					vault,
 				);
 
@@ -288,11 +287,9 @@ export async function handleEmbedLinkCommand(
 		selected: any,
 		selectedParsers: string[],
 		settings: any,
-		cache: Map<string, any>,
 		inPlace?: boolean,
 	) => Promise<void>,
 	settings: ObsidianLinkEmbedPluginSettings,
-	cache: Map<string, any>,
 ): Promise<void> {
 	let selected = await getText(editor);
 	if (!checkUrlValid(selected)) {
@@ -303,7 +300,6 @@ export async function handleEmbedLinkCommand(
 		selected,
 		[settings.primary, settings.backup],
 		settings,
-		cache,
 		settings.inPlace,
 	);
 }
@@ -323,11 +319,9 @@ export function createParserCommandHandler(
 		selected: any,
 		selectedParsers: string[],
 		settings: any,
-		cache: Map<string, any>,
 		inPlace?: boolean,
 	) => Promise<void>,
 	settings: ObsidianLinkEmbedPluginSettings,
-	cache: Map<string, any>,
 ): (editor: Editor) => Promise<void> {
 	return async (editor: Editor) => {
 		let selected = await getText(editor);
@@ -339,7 +333,6 @@ export function createParserCommandHandler(
 			selected,
 			[parserName],
 			settings,
-			cache,
 			settings.inPlace,
 		);
 	};
