@@ -4,55 +4,16 @@ import {
 	parseYaml,
 	MarkdownPostProcessorContext,
 } from 'obsidian';
-import { getFavicon } from './embedUtils';
-import { getImageDimensions } from './parsers';
-import { EmbedInfo, SPINNER, HTMLTemplate } from './constants';
-import Mustache from 'mustache';
+import {
+	getFavicon,
+	renderEmbed,
+	addRefreshButtonHandler,
+	refreshEmbed,
+} from './embedUtils';
+import { getImageDimensions, createParser } from './parsers';
+import { EmbedInfo, SPINNER } from './constants';
 import { ObsidianLinkEmbedPluginSettings } from './settings';
 import { imageFileToBase64 } from './parsers';
-
-/**
- * Renders an embed with the given information
- *
- * @param renderInfo The embed information to render
- * @param imageUrl The URL of the image to display
- * @param aspectRatio The aspect ratio for the image, if known
- * @param el The HTML element to replace with the rendered embed
- * @param settings Plugin settings
- * @returns The new HTML element that replaced the original element
- */
-function renderEmbed(
-	renderInfo: EmbedInfo,
-	imageUrl: string,
-	aspectRatio: number | undefined,
-	el: HTMLElement,
-	settings: ObsidianLinkEmbedPluginSettings,
-): HTMLElement {
-	// Calculate width based on aspect ratio
-	const baseWidth = 160;
-	const calculatedWidth = aspectRatio
-		? Math.round((baseWidth * 100) / aspectRatio)
-		: baseWidth * 100;
-
-	// Prepare template data
-	const templateData = {
-		title: renderInfo.title,
-		image: imageUrl,
-		description: renderInfo.description,
-		url: renderInfo.url,
-		respectAR: settings.respectImageAspectRatio,
-		calculatedWidth: calculatedWidth,
-		favicon: settings.enableFavicon ? renderInfo.favicon : '', // Only include favicon if enabled
-	};
-
-	const html = Mustache.render(HTMLTemplate, templateData);
-
-	let parser = new DOMParser();
-	var doc = parser.parseFromString(html, 'text/html');
-	const newEl = doc.body.firstChild as HTMLElement;
-	el.replaceWith(newEl);
-	return newEl;
-}
 
 /**
  * Handler for the editor-paste event.
@@ -269,18 +230,32 @@ export async function handleEmbedCodeBlock(
 	// First render with placeholder values
 	const newEl = renderEmbed(info, info.image, info.aspectRatio, el, settings);
 
+	// Add handler to the initial render
+	addRefreshButtonHandler(newEl, info, ctx, settings, cache, vault);
+
 	// If we have any promises, wait for all to complete then do final render
 	if (promises.length > 0) {
 		Promise.all(promises)
 			.then(() => {
 				// Final render with all real values
-				renderEmbed(
+				const finalEl = renderEmbed(
 					originalInfo,
 					originalInfo.image,
 					originalInfo.aspectRatio,
 					newEl,
 					settings,
 				);
+
+				// Add handler to the final render
+				addRefreshButtonHandler(
+					finalEl,
+					originalInfo,
+					ctx,
+					settings,
+					cache,
+					vault,
+				);
+
 				if (settings.debug) {
 					console.log(
 						'[Link Embed] Final render completed with real values:',

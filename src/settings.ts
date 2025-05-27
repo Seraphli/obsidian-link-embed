@@ -44,7 +44,7 @@ export const DEFAULT_SETTINGS: ObsidianLinkEmbedPluginSettings = {
 	imageFolderPath: 'link-embed-images',
 	respectImageAspectRatio: true,
 	useCache: true,
-	enableFavicon: true,
+	enableFavicon: false,
 	maxConcurrentLocalParsers: 1,
 };
 

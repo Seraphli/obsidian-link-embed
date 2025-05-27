@@ -362,6 +362,15 @@ export class LocalParser extends Parser {
 			(await this.getHtmlByElectron(url)) ||
 			(await this.getHtmlByRequest(url));
 
+		// Add null/empty check to ensure fallback to another parser
+		if (!html) {
+			this.debugError(
+				'[Link Embed] Failed to fetch HTML content for:',
+				url,
+			);
+			throw new Error(`Failed to fetch HTML content from ${url}`);
+		}
+
 		let parser = new DOMParser();
 		const doc = parser.parseFromString(html, 'text/html');
 		// get base url from document

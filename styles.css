@@ -332,3 +332,13 @@
 .embed:focus {
 	border-color: var(--background-modifier-border-focus);
 }
+
+/* Show refresh button on hover */
+.embed:hover .refresh-button {
+	opacity: 0.7;
+}
+
+/* Full opacity when hovering over the button itself */
+.refresh-button:hover {
+	opacity: 1 !important;
+}
