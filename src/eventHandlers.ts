@@ -4,11 +4,7 @@ import {
 	parseYaml,
 	MarkdownPostProcessorContext,
 } from 'obsidian';
-import {
-	getFavicon,
-	renderEmbed,
-	addRefreshButtonHandler,
-} from './embedUtils';
+import { getFavicon, renderEmbed, addRefreshButtonHandler } from './embedUtils';
 import { getImageDimensions, createParser } from './parsers';
 import { EmbedInfo, SPINNER } from './constants';
 import { ObsidianLinkEmbedPluginSettings } from './settings';
@@ -51,6 +47,7 @@ export function handleEditorPaste(
  * @param settings Plugin settings
  * @param cache Cache object to use
  * @param vault The vault instance
+ * @param imageLoadAttempts Map for tracking image loading attempts
  */
 export async function handleEmbedCodeBlock(
 	source: string,
@@ -59,6 +56,7 @@ export async function handleEmbedCodeBlock(
 	settings: ObsidianLinkEmbedPluginSettings,
 	cache: Map<string, any>,
 	vault: any,
+	imageLoadAttempts: Map<string, number>,
 ): Promise<void> {
 	const info = parseYaml(source.replace(/^\s+|\s+$/gm, '')) as EmbedInfo;
 
@@ -166,7 +164,7 @@ export async function handleEmbedCodeBlock(
 	// Check if aspect ratio needs to be calculated - use default for first render
 	if (settings.respectImageAspectRatio && !info.aspectRatio && info.image) {
 		// Set placeholder for initial render
-		info.aspectRatio = 1;
+		info.aspectRatio = 100;
 
 		try {
 			// Check cache first if caching is enabled
@@ -188,6 +186,7 @@ export async function handleEmbedCodeBlock(
 				const aspectRatioPromise = getImageDimensions(
 					info.image,
 					settings.useCache ? cache : null,
+					imageLoadAttempts,
 				)
 					.then((dimensions) => {
 						if (dimensions) {

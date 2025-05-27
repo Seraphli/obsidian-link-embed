@@ -9,18 +9,31 @@ export type ImageDimensions = {
 	aspectRatio: number;
 };
 
+// Default image dimensions to use after max retry attempts
+const DEFAULT_IMAGE_DIMENSIONS: ImageDimensions = {
+	width: 160,
+	height: 160,
+	aspectRatio: 100, // Square aspect ratio (1:1)
+};
+
+// Maximum number of attempts before using default dimensions
+const MAX_LOAD_ATTEMPTS = 5;
+
 /**
  * Utility function to get image dimensions and calculate aspect ratio
  * Works with both regular URLs and base64 data URLs
  * Uses a cache to avoid fetching the same image dimensions multiple times
+ * If an image fails to load 5 times, returns default square dimensions
  *
  * @param imageUrl - URL or data URL of the image
  * @param cache - Map to store cached image dimensions
+ * @param imageLoadAttempts - Map to track image loading attempts
  * @returns Promise with width, height, and aspectRatio or null on error
  */
 export async function getImageDimensions(
 	imageUrl: string,
 	cache?: Map<string, any> | null,
+	imageLoadAttempts?: Map<string, number> | null,
 ): Promise<ImageDimensions | null> {
 	try {
 		// Check if dimensions are already in cache using the URL directly as the key
@@ -30,6 +43,31 @@ export async function getImageDimensions(
 				imageUrl.substring(0, 50) + (imageUrl.length > 50 ? '...' : ''),
 			);
 			return cache.get(imageUrl);
+		}
+
+		// Check if we've already tried this image multiple times
+		const attempts =
+			imageLoadAttempts && imageLoadAttempts.has(imageUrl)
+				? imageLoadAttempts.get(imageUrl)
+				: 0;
+
+		if (attempts >= MAX_LOAD_ATTEMPTS) {
+			console.log(
+				`[Link Embed] Image load failed ${attempts} times, using default dimensions: ${imageUrl.substring(
+					0,
+					50,
+				)}${imageUrl.length > 50 ? '...' : ''}`,
+			);
+
+			// Store default dimensions in cache if available
+			if (cache) {
+				cache.set(imageUrl, DEFAULT_IMAGE_DIMENSIONS);
+				console.log(
+					'[Link Embed] Cached default dimensions for problematic image',
+				);
+			}
+
+			return DEFAULT_IMAGE_DIMENSIONS;
 		}
 
 		// Not in cache, fetch dimensions
@@ -54,16 +92,53 @@ export async function getImageDimensions(
 					);
 				}
 
+				// Reset failure counter on success
+				if (attempts > 0 && imageLoadAttempts) {
+					imageLoadAttempts.delete(imageUrl);
+				}
+
 				resolve(dimensions);
 			};
 			img.onerror = () => {
-				reject(
-					new Error(
-						`Failed to load image: ${imageUrl.substring(0, 150)}${
-							imageUrl.length > 150 ? '...' : ''
-						}`,
-					),
+				// Increment load attempts counter
+				const newAttempts = attempts + 1;
+				if (imageLoadAttempts) {
+					imageLoadAttempts.set(imageUrl, newAttempts);
+				}
+
+				console.log(
+					`[Link Embed] Failed to load image (attempt ${newAttempts}/${MAX_LOAD_ATTEMPTS}): ${imageUrl.substring(
+						0,
+						150,
+					)}${imageUrl.length > 150 ? '...' : ''}`,
 				);
+
+				// If we've reached the limit, use default dimensions
+				if (newAttempts >= MAX_LOAD_ATTEMPTS) {
+					console.log(
+						'[Link Embed] Max attempts reached, using default dimensions',
+					);
+
+					// Store default dimensions in cache if available
+					if (cache) {
+						cache.set(imageUrl, DEFAULT_IMAGE_DIMENSIONS);
+						console.log(
+							'[Link Embed] Cached default dimensions for problematic image',
+						);
+					}
+
+					resolve(DEFAULT_IMAGE_DIMENSIONS);
+				} else {
+					// Otherwise reject as usual
+					reject(
+						new Error(
+							`Failed to load image: ${imageUrl.substring(
+								0,
+								150,
+							)}${imageUrl.length > 150 ? '...' : ''}`,
+						),
+					);
+				}
 			};
 			img.src = imageUrl;
 		});

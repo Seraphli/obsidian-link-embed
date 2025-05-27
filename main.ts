@@ -27,6 +27,7 @@ export default class ObsidianLinkEmbedPlugin extends Plugin {
 	settings: ObsidianLinkEmbedPluginSettings;
 	pasteInfo: PasteInfo;
 	cache: Map<string, any>; // A unified cache for both image dimensions and favicons
+	imageLoadAttempts: Map<string, number>; // Track image loading attempts
 
 	async onload() {
 		await this.loadSettings();
@@ -38,6 +39,9 @@ export default class ObsidianLinkEmbedPlugin extends Plugin {
 
 		// Initialize a unified cache for both image dimensions and favicons
 		this.cache = new Map();
+
+		// Initialize the map to track image loading attempts
+		this.imageLoadAttempts = new Map();
 
 		// Initialize the LocalParser's limiter with the setting
 		LocalParser.initLimiter(this.settings.maxConcurrentLocalParsers);
@@ -106,6 +110,7 @@ export default class ObsidianLinkEmbedPlugin extends Plugin {
 					this.settings,
 					this.cache,
 					this.app.vault,
+					this.imageLoadAttempts,
 				);
 			},
 		);
@@ -119,6 +124,12 @@ export default class ObsidianLinkEmbedPlugin extends Plugin {
 		if (this.cache && this.cache.size > 0) {
 			console.log('[Link Embed] Clearing cache');
 			this.cache.clear();
+		}
+
+		// Clear image load attempts map
+		if (this.imageLoadAttempts && this.imageLoadAttempts.size > 0) {
+			console.log('[Link Embed] Clearing image load attempts tracking');
+			this.imageLoadAttempts.clear();
 		}
 	}
 
