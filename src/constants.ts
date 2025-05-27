@@ -57,7 +57,7 @@ export const HTMLTemplate = `<div class="embed">
 </div>`;
 
 export const REGEX = {
-	URL: '(http|ftp|https):\\/\\/([\\w_-]+(?:(?:\\.[\\w_-]+)+))([\\w.,@?^=%&:\\/~+#-]*[\\w@?^=%&\\/~+#-])',
+	URL: '^(http|ftp|https):\\/\\/([\\w_-]+(?:(?:\\.[\\w_-]+)+))([\\w.,@?^=%&:\\/~+#-]*[\\w@?^=%&\\/~+#-])$',
 	HTML: `<div
   style="
     border: 1px solid rgb\\(222, 222, 222\\);
