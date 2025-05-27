@@ -1,6 +1,7 @@
 import { requestUrl } from 'obsidian';
 import { Parser, ParsedLinkData } from './parser';
 import { ConcurrencyLimiter } from '../utils/concurrencyLimiter';
+import { getImageDimensions } from './utils/imageUtils';
 
 const electronPkg = require('electron');
 
@@ -46,23 +47,43 @@ export class LocalParser extends Parser {
 	}
 
 	meetsCriteria(element: Element): boolean {
-		//If inline - display:none
+		// If inline - display:none
 		if (/display:\s*none/.test(element.getAttribute('style'))) {
 			return false;
 		}
 
-		//hide images in navigation bar/header
+		// Check for logo images which should be allowed even in headers
+		if (element instanceof HTMLImageElement) {
+			const src = element.getAttribute('src') || '';
+			const alt = element.getAttribute('alt') || '';
+
+			// Allow images that are likely logos based on src or alt text
+			if (
+				src.toLowerCase().includes('logo') ||
+				alt.toLowerCase().includes('logo') ||
+				src.endsWith('.svg') // SVGs are often used for logos
+			) {
+				this.debugLog('[Link Embed] Image - Allowing logo image:', src);
+				return true;
+			}
+		}
+
+		// Hide images in navigation bar/header, unless they're potential logos
 		let contains_header = false;
 		element.classList.forEach((val) => {
-			if (val.toLowerCase().contains('header')) {
+			if (val.toLowerCase().includes('header')) {
 				contains_header = true;
 			}
 		});
-		if (element.id.toLowerCase().contains('header') || contains_header) {
+
+		if (
+			(element.id.toLowerCase().includes('header') || contains_header) &&
+			!(element instanceof HTMLImageElement)
+		) {
 			return false;
 		}
 
-		//recurse until <html>
+		// Recurse until <html>
 		if (element.parentElement != null) {
 			return this.meetsCriteria(element.parentElement);
 		}
@@ -70,9 +91,44 @@ export class LocalParser extends Parser {
 		return true;
 	}
 
-	getImage(doc: Document, url: URL): string {
+	// Method to verify if an image URL can be loaded
+	private async verifyImageUrl(
+		imgUrl: string,
+		failedUrls: Set<string>,
+	): Promise<string | null> {
+		if (failedUrls.has(imgUrl)) return null;
+
+		try {
+			// Try to get image dimensions - this will verify the image loads
+			const dimensions = await getImageDimensions(imgUrl);
+			if (dimensions) {
+				this.debugLog(
+					'[Link Embed] Image - Successfully verified image loads:',
+					imgUrl,
+				);
+				return imgUrl;
+			} else {
+				this.debugLog(
+					'[Link Embed] Image - Image failed to load properly:',
+					imgUrl,
+				);
+				failedUrls.add(imgUrl);
+			}
+		} catch (error) {
+			this.debugError(
+				'[Link Embed] Image - Failed to load image:',
+				imgUrl,
+				error,
+			);
+			failedUrls.add(imgUrl);
+		}
+		return null;
+	}
+
+	async getImage(doc: Document, url: URL): Promise<string> {
 		const baseEl = doc.querySelector('base[href]') as HTMLBaseElement;
 		const base = (baseEl && baseEl.href) || url.href;
+		const failedUrls = new Set<string>(); // Track failed URLs
 
 		this.debugLog('[Link Embed] Image - Looking for image for:', url.href);
 		this.debugLog('[Link Embed] Image - Base URL:', base);
@@ -81,26 +137,30 @@ export class LocalParser extends Parser {
 		const og = doc.querySelector<HTMLMetaElement>(
 			'head meta[property="og:image"]',
 		);
-		if (og) {
+		if (og && og.content) {
 			this.debugLog(
 				'[Link Embed] Image - Found Open Graph image:',
 				og.content,
 			);
-			if (og.content) {
-				try {
-					const resolvedUrl = new URL(og.content, base).href;
-					this.debugLog(
-						'[Link Embed] Image - Resolved OG image URL:',
-						resolvedUrl,
-					);
-					return resolvedUrl;
-				} catch (error) {
-					this.debugError(
-						'[Link Embed] Image - Error resolving OG image URL:',
-						error,
-					);
-					return og.content;
-				}
+			try {
+				const resolvedUrl = new URL(og.content, base).href;
+				this.debugLog(
+					'[Link Embed] Image - Resolved OG image URL:',
+					resolvedUrl,
+				);
+
+				// Verify OG image loads
+				const verifiedUrl = await this.verifyImageUrl(
+					resolvedUrl,
+					failedUrls,
+				);
+				if (verifiedUrl) return verifiedUrl;
+			} catch (error) {
+				this.debugError(
+					'[Link Embed] Image - Error resolving OG image URL:',
+					error,
+				);
+				// No longer trying with original content if URL resolution fails
 			}
 		}
 
@@ -124,10 +184,10 @@ export class LocalParser extends Parser {
 			this.debugLog(
 				`[Link Embed] Image - Found ${imgs.length} images for selector "${sel}"`,
 			);
+
 			for (const img of imgs) {
-				if (!this.meetsCriteria(img)) {
-					continue;
-				}
+				if (!this.meetsCriteria(img)) continue;
+
 				const src = img.getAttribute('src');
 				if (src) {
 					this.debugLog(
@@ -140,19 +200,27 @@ export class LocalParser extends Parser {
 							'[Link Embed] Image - Resolved image URL:',
 							resolvedUrl,
 						);
-						return resolvedUrl;
+
+						// Verify image loads
+						const verifiedUrl = await this.verifyImageUrl(
+							resolvedUrl,
+							failedUrls,
+						);
+						if (verifiedUrl) return verifiedUrl;
 					} catch (error) {
 						this.debugError(
 							'[Link Embed] Image - Error resolving image URL:',
 							error,
 						);
-						return src;
+						// No longer trying with original src if URL resolution fails
 					}
 				}
 			}
 		}
 
-		this.debugLog('[Link Embed] Image - No suitable image found');
+		this.debugLog(
+			'[Link Embed] Image - No suitable image found or all images failed to load',
+		);
 		return '';
 	}
 
@@ -377,9 +445,10 @@ export class LocalParser extends Parser {
 		let uRL = new URL(url);
 		this.debugLog('[Link Embed] Doc:', doc);
 		let title = this.getTitle(doc, uRL);
-		let image = this.getImage(doc, uRL);
 		let description = this.getDescription(doc);
 		let favicon = this.getFavicon(doc, uRL);
+		// Get image - now this is an async call
+		let image = await this.getImage(doc, uRL);
 
 		// 1. First, process the raw data to extract basic information
 		let processedData = this.process({
