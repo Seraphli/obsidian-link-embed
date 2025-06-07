@@ -126,8 +126,7 @@ export class LocalParser extends Parser {
 	}
 
 	async getImage(doc: Document, url: URL): Promise<string> {
-		const baseEl = doc.querySelector('base[href]') as HTMLBaseElement;
-		const base = (baseEl && baseEl.href) || url.href;
+		const base = url.href;
 		const failedUrls = new Set<string>(); // Track failed URLs
 
 		this.debugLog('[Link Embed] Image - Looking for image for:', url.href);
@@ -237,8 +236,7 @@ export class LocalParser extends Parser {
 	}
 
 	getFavicon(doc: Document, url: URL): string {
-		const baseEl = doc.querySelector('base[href]') as HTMLBaseElement;
-		const base = (baseEl && baseEl.href) || url.href;
+		const base = url.href;
 
 		this.debugLog(
 			'[Link Embed] Favicon - Looking for favicon for:',
