@@ -300,21 +300,13 @@ export class LocalParser extends Parser {
 			}
 		}
 
-		// Default to /favicon.ico
-		try {
-			const defaultFaviconUrl = new URL('/favicon.ico', base).href;
-			this.debugLog(
-				'[Link Embed] Favicon - Using default favicon.ico URL:',
-				defaultFaviconUrl,
-			);
-			return defaultFaviconUrl;
-		} catch (error) {
-			this.debugError(
-				'[Link Embed] Favicon - Error creating default favicon URL:',
-				error,
-			);
-			return '';
-		}
+		// Use Chrome's default globe icon as the default favicon
+		// This is a data URI representation of Chrome's globe icon used when sites don't have a favicon
+		const defaultFaviconDataUri = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAABRklEQVR42mKgOqjq75ds7510YNL0uV9nAGqniqwKYiCIHIIjcAK22BGQLRdgBWvc3fnWk/FJhrkPO1xPgGvqPfLfJMHhT1yqurvS48bPaJhjD2efgidnVwa2yv59xecvEvi0UWCXq9t0ItfP2MMZ7nwIpkA8F1n8uLxZHM6yrBH7FIl2gFXDHYsErkn2hyKLHtcKrFntk58uVQJ+kSdQnmjhID4cwLLa8+K0BXsfNWCqBOsFdo2Yldv43DBrkxd30cjnNyYBhK0SQGkI9pG4Mu40D5b374DRCAyhHqXVfTmOwivivMkJxBz5wnHCtBfGgNFC+ChWKWRf3hsQIlyEoIv4IYEo5wkgtBLRekY9DE4Uin4Keae6hydGnljPmE8kRcCine6827AMsJ1IuW9ibnlQpXLBCR/WC875m2BP+VSu3c/0m+8V08OBngc0pxcAAAAASUVORK5CYII=';
+		this.debugLog(
+			'[Link Embed] Favicon - Using default favicon data URI'
+		);
+		return defaultFaviconDataUri;
 	}
 
 	async getHtmlByRequest(url: string): Promise<string> {
