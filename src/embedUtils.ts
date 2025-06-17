@@ -7,7 +7,7 @@ import {
 } from 'obsidian';
 import Mustache from 'mustache';
 import { Selected } from './exEditor';
-import { errorNotice } from './errorUtils';
+import { showNotice } from './errorUtils';
 import {
 	MarkdownTemplate,
 	SPINNER,
@@ -92,7 +92,12 @@ export async function getFavicon(
 		// Return empty string if no favicon found
 		return '';
 	} catch (error) {
-		console.error('[Link Embed] Error fetching favicon:', error);
+		showNotice(
+			error instanceof Error
+				? error
+				: `Error fetching favicon: ${String(error)}`,
+			{ debug, context: 'Link Embed - Favicon', type: 'error' },
+		);
 		return '';
 	}
 }
@@ -226,7 +231,11 @@ export async function tryParsers(
 			// Return successful result
 			return { data, selectedParser };
 		} catch (error) {
-			console.log('[Link Embed] Error:', error);
+			showNotice(error instanceof Error ? error : String(error), {
+				debug: settings.debug,
+				context: 'Link Embed - Parser',
+				type: 'error',
+			});
 			idx += 1;
 			if (idx === selectedParsers.length) {
 				// If this was the last parser, propagate the error
@@ -253,7 +262,7 @@ export async function refreshEmbed(
 	ctx: MarkdownPostProcessorContext,
 	settings: ObsidianLinkEmbedPluginSettings,
 	vault: any,
-): Promise<void> {
+): Promise<boolean> {
 	try {
 		if (settings.debug) {
 			console.log('[Link Embed] Refreshing embed for URL:', url);
@@ -262,15 +271,23 @@ export async function refreshEmbed(
 		// Get the current file
 		const file = vault.getAbstractFileByPath(ctx.sourcePath);
 		if (!file) {
-			console.error('[Link Embed] File not found:', ctx.sourcePath);
-			return;
+			showNotice(`File not found: ${ctx.sourcePath}`, {
+				debug: settings.debug,
+				context: 'Link Embed - Refresh',
+				type: 'error',
+			});
+			return false;
 		}
 
 		// Get section info to locate the code block
 		const sectionInfo = ctx.getSectionInfo(element);
 		if (!sectionInfo) {
-			console.error('[Link Embed] Could not get section info');
-			return;
+			showNotice('Could not get section info', {
+				debug: settings.debug,
+				context: 'Link Embed - Refresh',
+				type: 'error',
+			});
+			return false;
 		}
 
 		// Create location info string from section info for error reporting
@@ -320,14 +337,32 @@ export async function refreshEmbed(
 			if (settings.debug) {
 				console.log('[Link Embed] Successfully refreshed embed');
 			}
+			return true;
 		} catch (error) {
-			console.error(
-				'[Link Embed] All parsers failed to fetch metadata:',
-				error,
+			showNotice(
+				error instanceof Error
+					? error
+					: `All parsers failed to fetch metadata: ${String(error)}`,
+				{
+					debug: settings.debug,
+					context: 'Link Embed - Refresh',
+					type: 'error',
+				},
 			);
+			return false;
 		}
 	} catch (error) {
-		console.error('[Link Embed] Error refreshing embed:', error);
+		showNotice(
+			error instanceof Error
+				? error
+				: `Error refreshing embed: ${String(error)}`,
+			{
+				debug: settings.debug,
+				context: 'Link Embed - Refresh',
+				type: 'error',
+			},
+		);
+		return false;
 	}
 }
 
@@ -350,7 +385,108 @@ export function addRefreshButtonHandler(
 	const refreshButton = element.querySelector('.refresh-button');
 	if (refreshButton && embedInfo.url) {
 		refreshButton.addEventListener('click', async () => {
-			await refreshEmbed(embedInfo.url, element, ctx, settings, vault);
+			const success = await refreshEmbed(
+				embedInfo.url,
+				element,
+				ctx,
+				settings,
+				vault,
+			);
+			if (success) {
+				showNotice('Embed refreshed successfully', 'success', {
+					debug: settings.debug,
+					context: 'Link Embed - Refresh',
+				});
+			}
+		});
+	}
+}
+
+/**
+ * Adds a copy button event handler to the given element
+ * Copies the exact lines of the embed in the editor
+ *
+ * @param element The element containing the copy button
+ * @param embedInfo The embed information
+ * @param ctx The markdown post processor context (needed to find position in document)
+ * @param vault The vault instance (needed to read file content)
+ */
+export function addCopyButtonHandler(
+	element: HTMLElement,
+	embedInfo: EmbedInfo,
+	ctx?: MarkdownPostProcessorContext,
+	vault?: any,
+	settings?: ObsidianLinkEmbedPluginSettings,
+): void {
+	const copyButton = element.querySelector('.copy-button');
+	if (copyButton) {
+		copyButton.addEventListener('click', async () => {
+			try {
+				// Get the current file - same approach as refreshEmbed
+				const file = vault.getAbstractFileByPath(ctx.sourcePath);
+				if (!file) {
+					showNotice(`File not found: ${ctx.sourcePath}`, {
+						debug: settings.debug,
+						context: 'Link Embed - Copy',
+						type: 'error',
+					});
+					return;
+				}
+
+				// Get section info to locate the code block
+				const sectionInfo = ctx.getSectionInfo(element);
+				if (!sectionInfo) {
+					showNotice('Could not get section info', {
+						debug: settings.debug,
+						context: 'Link Embed - Copy',
+						type: 'error',
+					});
+					return;
+				}
+
+				// Get file content and find the code block
+				const content = await vault.read(file);
+				const lines = content.split('\n');
+				const startLine = sectionInfo.lineStart;
+				const endLine = sectionInfo.lineEnd + 1;
+				const embedCode = lines.slice(startLine, endLine).join('\n');
+
+				// Copy the exact embed code to clipboard
+				navigator.clipboard
+					.writeText(embedCode)
+					.then(() => {
+						showNotice('Embed code copied to clipboard', {
+							debug: settings?.debug || false,
+							context: 'Link Embed - Copy',
+							type: 'success',
+						});
+					})
+					.catch((error) => {
+						showNotice(
+							error instanceof Error
+								? error
+								: `Error copying to clipboard: ${String(
+										error,
+								  )}`,
+							{
+								debug: settings?.debug || false,
+								context: 'Link Embed - Copy',
+								type: 'error',
+							},
+						);
+					});
+			} catch (error) {
+				showNotice(
+					error instanceof Error
+						? error
+						: `Error copying embed code: ${String(error)}`,
+					{
+						debug: settings?.debug || false,
+						context: 'Link Embed - Copy',
+						type: 'error',
+					},
+				);
+			}
 		});
 	}
 }
@@ -441,9 +577,10 @@ export async function embedUrl(
 		}
 	} catch (error) {
 		console.log('[Link Embed] Error:', error);
-		errorNotice(
-			error instanceof Error ? error : new Error(String(error)),
-			settings.debug,
-		);
+		showNotice(error instanceof Error ? error : String(error), {
+			debug: settings.debug,
+			context: 'Link Embed - Embed URL',
+			type: 'error',
+		});
 	}
 }

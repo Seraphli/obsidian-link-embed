@@ -333,12 +333,31 @@
 	border-color: var(--background-modifier-border-focus);
 }
 
-/* Show refresh button on hover */
-.embed:hover .refresh-button {
-	opacity: 0.7;
+/* Embed buttons styling */
+.embed-buttons {
+	position: absolute;
+	bottom: 5px;
+	right: 5px;
+	z-index: 10;
+	opacity: 0;
+	transition: opacity 0.2s ease;
+	display: flex;
+	gap: 10px;
 }
 
-/* Full opacity when hovering over the button itself */
-.refresh-button:hover {
+/* Button styling */
+.refresh-button,
+.copy-button {
+	cursor: pointer;
+}
+
+/* Show buttons on hover over the embed element */
+.embed:hover .embed-buttons {
+	opacity: 0.8;
+}
+
+/* Full opacity when hovering over the buttons */
+.refresh-button:hover,
+.copy-button:hover {
 	opacity: 1 !important;
 }

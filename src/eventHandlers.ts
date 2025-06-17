@@ -4,7 +4,13 @@ import {
 	parseYaml,
 	MarkdownPostProcessorContext,
 } from 'obsidian';
-import { getFavicon, renderEmbed, addRefreshButtonHandler } from './embedUtils';
+import {
+	getFavicon,
+	renderEmbed,
+	addRefreshButtonHandler,
+	addCopyButtonHandler,
+} from './embedUtils';
+import { showNotice } from './errorUtils';
 import { getImageDimensions, createParser } from './parsers';
 import { EmbedInfo, SPINNER } from './constants';
 import { ObsidianLinkEmbedPluginSettings } from './settings';
@@ -90,9 +96,18 @@ export async function handleEmbedCodeBlock(
 				originalInfo.image = base64Image; // Update original info for final render
 			}
 		} catch (error) {
-			console.error(
-				'[Link Embed] Failed to convert local image to base64:',
-				error,
+			showNotice(
+				error instanceof Error
+					? error
+					: `Failed to convert local image to base64: ${String(
+							error,
+					  )}`,
+				{
+					debug: settings.debug,
+					context: 'Link Embed - Image',
+					duration: 8000,
+					type: 'error',
+				},
 			);
 			// Keep original path on failure
 		}
@@ -145,20 +160,34 @@ export async function handleEmbedCodeBlock(
 							}
 						}
 					})
-					.catch((error) => {
-						console.error(
-							'[Link Embed] Error fetching favicon for existing embed:',
-							error,
-						);
-					});
+.catch((error) => {
+showNotice(
+error instanceof Error
+? error
+: `Error fetching favicon for existing embed: ${String(
+error,
+  )}`,
+{
+debug: settings.debug,
+context: 'Link Embed - Favicon',
+type: 'error',
+},
+);
+});
 				promises.push(faviconPromise);
 			}
-		} catch (error) {
-			console.error(
-				'[Link Embed] Error setting up favicon fetching:',
-				error,
-			);
-		}
+} catch (error) {
+showNotice(
+error instanceof Error
+? error
+: `Error setting up favicon fetching: ${String(error)}`,
+{
+debug: settings.debug,
+context: 'Link Embed - Favicon Setup',
+type: 'error',
+},
+);
+}
 	}
 
 	// Check if aspect ratio needs to be calculated - use default for first render
@@ -204,33 +233,50 @@ export async function handleEmbedCodeBlock(
 						}
 					})
 					.catch((error) => {
-						console.error(
-							'[Link Embed] Error calculating dynamic aspect ratio at ' +
-								(ctx.sourcePath
-									? ctx.sourcePath +
-									  ':' +
-									  (ctx.getSectionInfo(el)?.lineStart + 1 ||
-											'unknown')
-									: 'unknown location') +
-								':',
-							error,
+						const location = ctx.sourcePath
+							? `${ctx.sourcePath}:${
+									ctx.getSectionInfo(el)?.lineStart + 1 ||
+									'unknown'
+							  }`
+							: 'unknown location';
+						showNotice(
+							error instanceof Error
+								? error
+								: `Error calculating dynamic aspect ratio at ${location}: ${String(
+										error,
+								  )}`,
+							'error',
+							{
+								debug: settings.debug,
+								context: 'Link Embed - Aspect Ratio',
+								duration: 7000,
+							},
 						);
 					});
 				promises.push(aspectRatioPromise);
 			}
-		} catch (error) {
-			console.error(
-				'[Link Embed] Error setting up aspect ratio calculation:',
-				error,
-			);
-		}
+} catch (error) {
+showNotice(
+error instanceof Error
+? error
+: `Error setting up aspect ratio calculation: ${String(
+error,
+  )}`,
+{
+debug: settings.debug,
+context: 'Link Embed - Aspect Ratio Setup',
+type: 'error',
+},
+);
+}
 	}
 
 	// First render with placeholder values
 	const newEl = renderEmbed(info, info.image, info.aspectRatio, el, settings);
 
-	// Add handler to the initial render
+	// Add handlers to the initial render
 	addRefreshButtonHandler(newEl, info, ctx, settings, vault);
+	addCopyButtonHandler(newEl, info, ctx, vault, settings);
 
 	// If we have any promises, wait for all to complete then do final render
 	if (promises.length > 0) {
@@ -245,13 +291,20 @@ export async function handleEmbedCodeBlock(
 					settings,
 				);
 
-				// Add handler to the final render
+				// Add handlers to the final render
 				addRefreshButtonHandler(
 					finalEl,
 					originalInfo,
 					ctx,
 					settings,
 					vault,
+				);
+				addCopyButtonHandler(
+					finalEl,
+					originalInfo,
+					ctx,
+					vault,
+					settings,
 				);
 
 				if (settings.debug) {
@@ -262,9 +315,17 @@ export async function handleEmbedCodeBlock(
 				}
 			})
 			.catch((error) => {
-				console.error(
-					'[Link Embed] Error during data fetching:',
-					error,
+				// Using the info type with warning prefix for a less severe notification
+				showNotice(
+					error instanceof Error
+						? error
+						: `Error during data fetching: ${String(error)}`,
+					{
+						debug: settings.debug,
+						context: 'Link Embed - Data Fetch',
+						type: 'warning',
+						prefix: 'Warning',
+					},
 				);
 			});
 	}
