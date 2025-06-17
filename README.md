@@ -94,7 +94,8 @@ The `metadata` field is also optional and can be used to include any additional 
 
 ## Interface Features
 
-- **Refresh Button**: Each embed includes a refresh button that allows you to update the link metadata without recreating the embed.
+- **Refresh Button**: When hovering over an embedded link, a refresh button appears that allows you to update the link metadata and preview without recreating the embed. This is particularly useful when the content of the original link has been updated and you want to refresh the embedded preview to reflect these changes.
+- **Copy Button**: When hovering over an embedded link, a copy button appears that allows you to quickly copy the embed code for sharing or reusing elsewhere in your notes.
 - **Popup Menu**: When enabled, pasting a URL will show a popup menu with options to create an embed, create a markdown link, or dismiss.
 - **In-place Replacement**: Option to replace the selected URL with the embed instead of inserting on the next line.
 
