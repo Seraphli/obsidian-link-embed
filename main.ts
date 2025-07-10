@@ -8,7 +8,7 @@ import {
 import { LocalParser } from './src/parsers/LocalParser';
 import { checkUrlValid } from './src/urlUtils';
 import { isUrl } from './src/urlUtils';
-import { embedUrl } from './src/embedUtils';
+import { embedUrl, getFavicon } from './src/embedUtils';
 import { parseOptions } from './src/parsers';
 import {
 	handleEditorPaste,
@@ -28,6 +28,8 @@ export default class ObsidianLinkEmbedPlugin extends Plugin {
 	pasteInfo: PasteInfo;
 	cache: Map<string, any>; // A unified cache for both image dimensions and favicons
 	imageLoadAttempts: Map<string, number>; // Track image loading attempts
+
+	getFavicon = getFavicon;
 
 	async onload() {
 		await this.loadSettings();

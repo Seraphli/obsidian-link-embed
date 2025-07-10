@@ -1,8 +1,6 @@
 import {
 	Editor,
 	Notice,
-	TFile,
-	Vault,
 	MarkdownPostProcessorContext,
 } from 'obsidian';
 import Mustache from 'mustache';
@@ -17,7 +15,6 @@ import {
 import { formatDate } from './utils';
 import { createParser, LocalParser } from './parsers';
 import { ObsidianLinkEmbedPluginSettings } from './settings';
-import { imageFileToBase64, getImageDimensions } from './parsers';
 
 /**
  * Fetch and return a favicon URL for the given website URL.
