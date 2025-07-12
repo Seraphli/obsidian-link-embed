@@ -1,6 +1,6 @@
 {
-	"name": "obsidian-link-embed",
-	"version": "2.9.0",
+	"name": "obsidian-embed-mdc",
+	"version": "3.0.0",
 	"description": "This plugin auto-fetches page metadata to embed Notion-style link preview cards.",
 	"main": "main.js",
 	"scripts": {
@@ -11,8 +11,20 @@
 		"prepublish": "npm run build && npm run copyBuild",
 		"publish": "npm run build && npm run version && npm run copyBuild"
 	},
-	"keywords": [],
+	"keywords": [
+		"obsidian",
+		"plugin",
+		"metadata",
+		"embed",
+		"preview",
+		"link-preview",
+		"notion",
+		"cards"
+	],
 	"author": "SErAphLi",
+	"contributors": [
+		"Mikaleb"
+	],
 	"license": "MIT",
 	"devDependencies": {
 		"@types/he": "^1.2.3",
@@ -33,5 +45,6 @@
 	},
 	"dependencies": {
 		"he": "^1.2.0"
-	}
+	},
+	"packageManager": "yarn@1.22.22+sha512.a6b2f7906b721bba3d67d4aff083df04dad64c399707841b7acf00f6b133b7ac24255f2652fa22ae3534329dc6180534e98d17432037ff6fd140556e2bb3137e"
 }
