@@ -235,8 +235,9 @@ export class LocalParser extends Parser {
 		return '';
 	}
 
-	getFavicon(doc: Document, url: URL): string {
+	async getFavicon(doc: Document, url: URL): Promise<string> {
 		const base = url.href;
+		const failedUrls = new Set<string>(); // Track failed URLs
 
 		this.debugLog(
 			'[Link Embed] Favicon - Looking for favicon for:',
@@ -244,63 +245,81 @@ export class LocalParser extends Parser {
 		);
 		this.debugLog('[Link Embed] Favicon - Base URL:', base);
 
-		// Check for standard favicon link
-		const faviconLink = doc.querySelector<HTMLLinkElement>(
-			'link[rel="icon"], link[rel="shortcut icon"]',
-		);
-		if (faviconLink) {
-			const hrefAttr = faviconLink.getAttribute('href');
-			this.debugLog(
-				'[Link Embed] Favicon - Found standard favicon link:',
-				hrefAttr,
-			);
-			if (hrefAttr) {
-				try {
-					const resolvedUrl = new URL(hrefAttr, base).href;
-					this.debugLog(
-						'[Link Embed] Favicon - Resolved standard favicon URL:',
-						resolvedUrl,
-					);
-					return resolvedUrl;
-				} catch (error) {
-					this.debugError(
-						'[Link Embed] Favicon - Error resolving standard favicon URL:',
-						error,
-					);
-					return hrefAttr;
-				}
-			}
-		}
-
-		// Check for apple-touch-icon
-		const appleIcon = doc.querySelector<HTMLLinkElement>(
+		// Define favicon selectors in priority order
+		const faviconSelectors = [
+			'link[rel="icon"]',
+			'link[rel="shortcut icon"]',
 			'link[rel="apple-touch-icon"]',
-		);
-		if (appleIcon) {
-			const hrefAttr = appleIcon.getAttribute('href');
-			this.debugLog(
-				'[Link Embed] Favicon - Found apple-touch-icon:',
-				hrefAttr,
-			);
-			if (hrefAttr) {
-				try {
-					const resolvedUrl = new URL(hrefAttr, base).href;
-					this.debugLog(
-						'[Link Embed] Favicon - Resolved apple-touch-icon URL:',
-						resolvedUrl,
-					);
-					return resolvedUrl;
-				} catch (error) {
-					this.debugError(
-						'[Link Embed] Favicon - Error resolving apple-touch-icon URL:',
-						error,
-					);
-					return hrefAttr;
+			'link[rel="apple-touch-icon-precomposed"]',
+		];
+
+		// Try each favicon selector with verification
+		for (const selector of faviconSelectors) {
+			const faviconLink = doc.querySelector<HTMLLinkElement>(selector);
+			if (faviconLink) {
+				const hrefAttr = faviconLink.getAttribute('href');
+				this.debugLog(
+					`[Link Embed] Favicon - Found ${selector}:`,
+					hrefAttr,
+				);
+				if (hrefAttr) {
+					try {
+						const resolvedUrl = new URL(hrefAttr, base).href;
+						this.debugLog(
+							`[Link Embed] Favicon - Resolved ${selector} URL:`,
+							resolvedUrl,
+						);
+
+						// Verify favicon URL loads
+						const verifiedUrl = await this.verifyImageUrl(
+							resolvedUrl,
+							failedUrls,
+						);
+						if (verifiedUrl) {
+							this.debugLog(
+								'[Link Embed] Favicon - Successfully verified favicon:',
+								verifiedUrl,
+							);
+							return verifiedUrl;
+						}
+					} catch (error) {
+						this.debugError(
+							`[Link Embed] Favicon - Error resolving ${selector} URL:`,
+							error,
+						);
+						// Continue to next selector
+					}
 				}
 			}
 		}
 
-		// Use Chrome's default globe icon as the default favicon
+		// Try default /favicon.ico as fallback
+		try {
+			const defaultFaviconUrl = new URL('/favicon.ico', base).href;
+			this.debugLog(
+				'[Link Embed] Favicon - Trying default /favicon.ico:',
+				defaultFaviconUrl,
+			);
+
+			const verifiedUrl = await this.verifyImageUrl(
+				defaultFaviconUrl,
+				failedUrls,
+			);
+			if (verifiedUrl) {
+				this.debugLog(
+					'[Link Embed] Favicon - Successfully verified default favicon:',
+					verifiedUrl,
+				);
+				return verifiedUrl;
+			}
+		} catch (error) {
+			this.debugError(
+				'[Link Embed] Favicon - Error with default /favicon.ico:',
+				error,
+			);
+		}
+
+		// Use Chrome's default globe icon as the final fallback
 		// This is a data URI representation of Chrome's globe icon used when sites don't have a favicon
 		const defaultFaviconDataUri = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAABRklEQVR42mKgOqjq75ds7510YNL0uV9nAGqniqwKYiCIHIIjcAK22BGQLRdgBWvc3fnWk/FJhrkPO1xPgGvqPfLfJMHhT1yqurvS48bPaJhjD2efgidnVwa2yv59xecvEvi0UWCXq9t0ItfP2MMZ7nwIpkA8F1n8uLxZHM6yrBH7FIl2gFXDHYsErkn2hyKLHtcKrFntk58uVQJ+kSdQnmjhID4cwLLa8+K0BXsfNWCqBOsFdo2Yldv43DBrkxd30cjnNyYBhK0SQGkI9pG4Mu40D5b374DRCAyhHqXVfTmOwivivMkJxBz5wnHCtBfGgNFC+ChWKWRf3hsQIlyEoIv4IYEo5wkgtBLRekY9DE4Uin4Keae6hydGnljPmE8kRcCine6827AMsJ1IuW9ibnlQpXLBCR/WC875m2BP+VSu3c/0m+8V08OBngc0pxcAAAAASUVORK5CYII=';
 		this.debugLog(
@@ -412,7 +431,8 @@ export class LocalParser extends Parser {
 					return null;
 				}
 			})) || null
-		);
+
+);
 	}
 
 	async parse(url: string): Promise<ParsedLinkData> {
@@ -436,7 +456,7 @@ export class LocalParser extends Parser {
 		this.debugLog('[Link Embed] Doc:', doc);
 		let title = this.getTitle(doc, uRL);
 		let description = this.getDescription(doc);
-		let favicon = this.getFavicon(doc, uRL);
+		let favicon = await this.getFavicon(doc, uRL);
 		// Get image - now this is an async call
 		let image = await this.getImage(doc, uRL);
 
