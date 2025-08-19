@@ -16,6 +16,7 @@ export interface ObsidianLinkEmbedPluginSettings {
 	delay: number;
 	linkpreviewApiKey: string;
 	jsonlinkApiKey: string;
+	iframelyApiKey: string;
 	metadataTemplate: string;
 	useMetadataTemplate: boolean;
 	saveImagesToVault: boolean;
@@ -37,6 +38,7 @@ export const DEFAULT_SETTINGS: ObsidianLinkEmbedPluginSettings = {
 	delay: 0,
 	linkpreviewApiKey: '',
 	jsonlinkApiKey: '',
+	iframelyApiKey: '',
 	metadataTemplate:
 		'parser: "{{parser}}"\ndate: "{{date}}"\ncustom_date: "{{#formatDate}}YYYY-MM-DD HH:mm:ss{{/formatDate}}"',
 	useMetadataTemplate: false,
@@ -345,6 +347,18 @@ export class ObsidianLinkEmbedSettingTab extends PluginSettingTab {
 					.setValue(this.plugin.settings.jsonlinkApiKey)
 					.onChange((value) => {
 						this.plugin.settings.jsonlinkApiKey = value;
+						this.plugin.saveSettings();
+					});
+			});
+
+		new Setting(containerEl)
+			.setName('Iframely API Key')
+			.setDesc('Enter your API key for the Iframely provider.')
+			.addText((value) => {
+				value
+					.setValue(this.plugin.settings.iframelyApiKey)
+					.onChange((value) => {
+						this.plugin.settings.iframelyApiKey = value;
 						this.plugin.saveSettings();
 					});
 			});

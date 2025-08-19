@@ -40,7 +40,12 @@ export function createParser(
 			parser = new MicroLinkParser();
 			break;
 		case 'iframely':
-			parser = new IframelyParser();
+			const iframelyApiKey = settings.iframelyApiKey;
+			if (!iframelyApiKey) {
+				console.log('[Link Embed] Iframely API key is not set');
+				throw new Error('Iframely API key is not set');
+			}
+			parser = new IframelyParser(iframelyApiKey);
 			break;
 		case 'local':
 			parser = new LocalParser();
