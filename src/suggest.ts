@@ -31,13 +31,15 @@ export default class EmbedSuggest extends EditorSuggest<IDateCompletion> {
 		if (this.plugin.settings.rmDismiss) {
 			return [
 				{ choice: 'Create Embed' },
-				{ choice: 'Create Markdown Link' },
+				{ choice: 'Mention' },
+				{ choice: 'Mention with Favicon' },
 			];
 		}
 		return [
 			{ choice: 'Dismiss' },
 			{ choice: 'Create Embed' },
-			{ choice: 'Create Markdown Link' },
+			{ choice: 'Mention' },
+			{ choice: 'Mention with Favicon' },
 		];
 	}
 
@@ -68,14 +70,15 @@ export default class EmbedSuggest extends EditorSuggest<IDateCompletion> {
 				this.plugin.settings,
 				true,
 			);
-		} else if (suggestion.choice == 'Create Markdown Link') {
-			// Convert URL to [title](link) format
-			this.convertToMarkdownLink();
+		} else if (suggestion.choice == 'Mention') {
+			this.convertToMention(false);
+		} else if (suggestion.choice == 'Mention with Favicon') {
+			this.convertToMention(true);
 		}
 		this.close();
 	}
 
-	private async convertToMarkdownLink(): Promise<void> {
+	private async convertToMention(withFavicon: boolean): Promise<void> {
 		const url = this.plugin.pasteInfo.text;
 		const cursor = this.editor.getCursor();
 		const boundary = {
@@ -86,26 +89,16 @@ export default class EmbedSuggest extends EditorSuggest<IDateCompletion> {
 			end: cursor,
 		};
 
+		let data = null;
 		try {
-			// Create parser instance on demand
 			const parser = createParser(
 				this.plugin.settings.primary,
 				this.plugin.settings,
 				this.plugin.app.vault,
 			);
 			parser.debug = this.plugin.settings.debug;
-
-			// Try to fetch only the title for the link
-			const data = await parser.parse(url);
-
-			if (data.title) {
-				// Replace the URL with [title](url) format
-				const mdLink = `[${data.title}](${url})`;
-				this.editor.replaceRange(mdLink, boundary.start, boundary.end);
-			}
-			// If title is empty, keep the URL as is (do nothing)
+			data = await parser.parse(url);
 		} catch (error) {
-			// If primary parser fails, try the backup parser
 			try {
 				const backupParser = createParser(
 					this.plugin.settings.backup,
@@ -113,20 +106,8 @@ export default class EmbedSuggest extends EditorSuggest<IDateCompletion> {
 					this.plugin.app.vault,
 				);
 				backupParser.debug = this.plugin.settings.debug;
-
-				const backupData = await backupParser.parse(url);
-				if (backupData.title) {
-					// Replace the URL with [title](url) format
-					const mdLink = `[${backupData.title}](${url})`;
-					this.editor.replaceRange(
-						mdLink,
-						boundary.start,
-						boundary.end,
-					);
-				}
-				// If title is empty, keep the URL as is (do nothing)
+				data = await backupParser.parse(url);
 			} catch (backupError) {
-				// Both parsers failed, keep the URL as is (do nothing)
 				if (this.plugin.settings.debug) {
 					console.log(
 						'Link Embed: Failed to fetch title using both parsers',
@@ -136,6 +117,32 @@ export default class EmbedSuggest extends EditorSuggest<IDateCompletion> {
 				}
 			}
 		}
+
+		if (!data) return;
+		const displayTitle = data.title ? data.title : url;
+		const markdownMention = `[${displayTitle}](${url})`;
+		if (withFavicon) {
+			// Use the favicon from the parser if available, else fallback to getFavicon
+			let favicon = data.favicon;
+			if (!favicon && this.plugin.getFavicon) {
+				favicon = await this.plugin.getFavicon(
+					url,
+					this.plugin.settings,
+					this.plugin.cache,
+					this.plugin.settings.debug,
+				);
+			}
+			if (favicon) {
+				const htmlMention = `<img src="${favicon}" style="width:1em;height:1em;vertical-align:text-bottom;display:inline-block;margin-right:0.2em;"> ${markdownMention}`;
+				this.editor.replaceRange(
+					htmlMention,
+					boundary.start,
+					boundary.end,
+				);
+				return;
+			}
+		}
+		this.editor.replaceRange(markdownMention, boundary.start, boundary.end);
 	}
 
 	onTrigger(

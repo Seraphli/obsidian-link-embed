@@ -6,6 +6,7 @@
 	"scripts": {
 		"dev": "node esbuild.config.mjs",
 		"build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
+		"watch": "tsc -noEmit -skipLibCheck --watch & node esbuild.config.mjs watch",
 		"version": "node version-bump.mjs && git add manifest.json versions.json",
 		"copyBuild": "make-dir build && rimraf build/main.js build/manifest.json build/styles.css && cpy main.js manifest.json styles.css build/",
 		"prepublish": "npm run build && npm run copyBuild",
