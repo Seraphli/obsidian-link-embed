@@ -15,6 +15,7 @@ PS: If you happen to know any other website that provides free API for users to 
 The easiest way to use is by pasting your link and then creating an embed preview.
 
 When pasting a URL, a popup suggestion menu will appear (if enabled) with options to:
+
 - Create Embed - Converts the URL into an embedded preview
 - Create Markdown Link - Converts the URL into a standard markdown link `[title](url)`
 - Dismiss - Closes the popup (can be removed in settings)

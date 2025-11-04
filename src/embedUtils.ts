@@ -1,10 +1,4 @@
-import {
-	Editor,
-	Notice,
-	TFile,
-	Vault,
-	MarkdownPostProcessorContext,
-} from 'obsidian';
+import { Editor, Notice, MarkdownPostProcessorContext } from 'obsidian';
 import Mustache from 'mustache';
 import { Selected } from './exEditor';
 import { showNotice } from './errorUtils';
@@ -15,9 +9,8 @@ import {
 	HTMLTemplate,
 } from './constants';
 import { formatDate } from './utils';
-import { createParser, LocalParser } from './parsers';
+import { LocalParser } from './parsers';
 import { ObsidianLinkEmbedPluginSettings } from './settings';
-import { imageFileToBase64, getImageDimensions } from './parsers';
 
 /**
  * Fetch and return a favicon URL for the given website URL.
@@ -467,7 +460,7 @@ export function addCopyButtonHandler(
 								? error
 								: `Error copying to clipboard: ${String(
 										error,
-								  )}`,
+									)}`,
 							{
 								debug: settings?.debug || false,
 								context: 'Link Embed - Copy',

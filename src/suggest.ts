@@ -5,7 +5,6 @@ import {
 	EditorSuggest,
 	EditorSuggestContext,
 	EditorSuggestTriggerInfo,
-	MarkdownView,
 	TFile,
 } from 'obsidian';
 import type ObsidianLinkEmbedPlugin from 'main';

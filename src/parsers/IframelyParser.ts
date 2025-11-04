@@ -11,15 +11,17 @@ export class IframelyParser extends Parser {
 		const title = data.meta?.title || '';
 		// Find the first thumbnail with maxresdefault or highest resolution
 		const thumbnails = data.links?.thumbnail || [];
-		const image = thumbnails.reduce((best: string, thumb: any) => {
-			// If we already found maxresdefault, keep it
-			if (best.includes('maxresdefault')) return best;
-			// If this is maxresdefault or we don't have an image yet, use it
-			if (thumb.href.includes('maxresdefault') || !best) return thumb.href;
-			// Otherwise keep existing image
-			return best;
-		}, '') || '';
-		
+		const image =
+			thumbnails.reduce((best: string, thumb: any) => {
+				// If we already found maxresdefault, keep it
+				if (best.includes('maxresdefault')) return best;
+				// If this is maxresdefault or we don't have an image yet, use it
+				if (thumb.href.includes('maxresdefault') || !best)
+					return thumb.href;
+				// Otherwise keep existing image
+				return best;
+			}, '') || '';
+
 		let description: string = data.meta?.description || '';
 		description = description.replace(/\n/g, ' ').replace(/\\/g, '\\\\');
 		return { title, image, description };

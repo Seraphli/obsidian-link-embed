@@ -11,7 +11,7 @@ import {
 	addCopyButtonHandler,
 } from './embedUtils';
 import { showNotice } from './errorUtils';
-import { getImageDimensions, createParser } from './parsers';
+import { getImageDimensions } from './parsers';
 import { EmbedInfo, SPINNER } from './constants';
 import { ObsidianLinkEmbedPluginSettings } from './settings';
 import { imageFileToBase64 } from './parsers';
@@ -101,7 +101,7 @@ export async function handleEmbedCodeBlock(
 					? error
 					: `Failed to convert local image to base64: ${String(
 							error,
-					  )}`,
+						)}`,
 				{
 					debug: settings.debug,
 					context: 'Link Embed - Image',
@@ -160,34 +160,34 @@ export async function handleEmbedCodeBlock(
 							}
 						}
 					})
-.catch((error) => {
-showNotice(
-error instanceof Error
-? error
-: `Error fetching favicon for existing embed: ${String(
-error,
-  )}`,
-{
-debug: settings.debug,
-context: 'Link Embed - Favicon',
-type: 'error',
-},
-);
-});
+					.catch((error) => {
+						showNotice(
+							error instanceof Error
+								? error
+								: `Error fetching favicon for existing embed: ${String(
+										error,
+									)}`,
+							{
+								debug: settings.debug,
+								context: 'Link Embed - Favicon',
+								type: 'error',
+							},
+						);
+					});
 				promises.push(faviconPromise);
 			}
-} catch (error) {
-showNotice(
-error instanceof Error
-? error
-: `Error setting up favicon fetching: ${String(error)}`,
-{
-debug: settings.debug,
-context: 'Link Embed - Favicon Setup',
-type: 'error',
-},
-);
-}
+		} catch (error) {
+			showNotice(
+				error instanceof Error
+					? error
+					: `Error setting up favicon fetching: ${String(error)}`,
+				{
+					debug: settings.debug,
+					context: 'Link Embed - Favicon Setup',
+					type: 'error',
+				},
+			);
+		}
 	}
 
 	// Check if aspect ratio needs to be calculated - use default for first render
@@ -237,14 +237,14 @@ type: 'error',
 							? `${ctx.sourcePath}:${
 									ctx.getSectionInfo(el)?.lineStart + 1 ||
 									'unknown'
-							  }`
+								}`
 							: 'unknown location';
 						showNotice(
 							error instanceof Error
 								? error
 								: `Error calculating dynamic aspect ratio at ${location}: ${String(
 										error,
-								  )}`,
+									)}`,
 							'error',
 							{
 								debug: settings.debug,
@@ -255,20 +255,20 @@ type: 'error',
 					});
 				promises.push(aspectRatioPromise);
 			}
-} catch (error) {
-showNotice(
-error instanceof Error
-? error
-: `Error setting up aspect ratio calculation: ${String(
-error,
-  )}`,
-{
-debug: settings.debug,
-context: 'Link Embed - Aspect Ratio Setup',
-type: 'error',
-},
-);
-}
+		} catch (error) {
+			showNotice(
+				error instanceof Error
+					? error
+					: `Error setting up aspect ratio calculation: ${String(
+							error,
+						)}`,
+				{
+					debug: settings.debug,
+					context: 'Link Embed - Aspect Ratio Setup',
+					type: 'error',
+				},
+			);
+		}
 	}
 
 	// First render with placeholder values

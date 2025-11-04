@@ -5,16 +5,22 @@
 	"main": "main.js",
 	"scripts": {
 		"dev": "node esbuild.config.mjs",
-		"build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
+		"format": "prettier --write \"src/**/*.{ts,js,json,css,md}\" \"*.{ts,js,json,md}\"",
+		"lint": "eslint \"src/**/*.{ts,js}\" \"*.{ts,js}\"",
+		"lint:fix": "eslint --fix \"src/**/*.{ts,js}\" \"*.{ts,js}\"",
+		"build": "npm run format && tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
 		"version": "node version-bump.mjs && git add manifest.json versions.json",
 		"copyBuild": "make-dir build && rimraf build/main.js build/manifest.json build/styles.css && cpy main.js manifest.json styles.css build/",
 		"prepublish": "npm run build && npm run copyBuild",
-		"publish": "npm run build && npm run version && npm run copyBuild"
+		"publish": "npm run build && npm run version && npm run copyBuild",
+		"prepare": "husky"
 	},
 	"keywords": [],
 	"author": "SErAphLi",
 	"license": "MIT",
 	"devDependencies": {
+		"@codemirror/state": "6.5.0",
+		"@codemirror/view": "6.38.1",
 		"@types/he": "^1.2.3",
 		"@types/lodash": "^4.17.20",
 		"@types/mustache": "^4.2.6",
@@ -24,14 +30,26 @@
 		"builtin-modules": "^5.0.0",
 		"cpy-cli": "^6.0.0",
 		"esbuild": "^0.25.12",
+		"eslint": "^9.0.0",
+		"husky": "^9.1.7",
+		"lint-staged": "^16.2.6",
 		"make-dir-cli": "^4.0.0",
 		"mustache": "^4.2.0",
 		"obsidian": "^1.10.2",
+		"prettier": "^3.6.2",
 		"rimraf": "^6.1.0",
 		"tslib": "2.8.1",
 		"typescript": "^5.9.3"
 	},
 	"dependencies": {
 		"he": "^1.2.0"
+	},
+	"lint-staged": {
+		"*.{ts,js,json,css,md}": [
+			"prettier --write"
+		],
+		"*.{ts,js}": [
+			"eslint --fix"
+		]
 	}
 }

@@ -1,4 +1,4 @@
-import { Notice, TFile, normalizePath, requestUrl } from 'obsidian';
+import { TFile, normalizePath, requestUrl } from 'obsidian';
 import * as path from 'path';
 import * as crypto from 'crypto';
 
@@ -169,7 +169,7 @@ export async function downloadImageToVault(
 		const normalizedFolderPath = normalizePath(folderPath);
 		try {
 			await vault.createFolder(normalizedFolderPath);
-		} catch (e) {
+		} catch {
 			// Folder likely already exists, which is fine
 		}
 
