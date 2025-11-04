@@ -9,7 +9,7 @@ import {
 	HTMLTemplate,
 } from './constants';
 import { formatDate } from './utils';
-import { LocalParser } from './parsers';
+import { LocalParser, createParser } from './parsers';
 import { ObsidianLinkEmbedPluginSettings } from './settings';
 
 /**
