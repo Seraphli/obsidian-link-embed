@@ -1,38 +1,31 @@
-import {
-	Editor,
-	MarkdownView,
-	parseYaml,
-	MarkdownPostProcessorContext,
-} from 'obsidian';
+import { Editor, parseYaml, MarkdownPostProcessorContext } from 'obsidian';
 import {
 	getFavicon,
 	renderEmbed,
 	addRefreshButtonHandler,
 	addCopyButtonHandler,
 	addDeleteButtonHandler,
+	convertUrlToMarkdownLink,
+	embedUrl,
 } from './embedUtils';
 import { showNotice } from './errorUtils';
 import { getImageDimensions } from './parsers';
 import { EmbedInfo, SPINNER } from './constants';
 import { ObsidianLinkEmbedPluginSettings } from './settings';
 import { imageFileToBase64 } from './parsers';
+import { checkUrlValid, isUrl } from './urlUtils';
+import { ExEditor } from './exEditor';
 
 /**
  * Handler for the editor-paste event.
  * Checks if the pasted text is a URL and updates the pasteInfo accordingly.
  *
  * @param evt The clipboard event
- * @param editor The editor instance
- * @param markdownView The markdown view
  * @param pasteInfo Object to update with paste information
- * @param isUrl Function to check if text is a URL
  */
 export function handleEditorPaste(
 	evt: ClipboardEvent,
-	editor: Editor,
-	markdownView: MarkdownView,
 	pasteInfo: { trigger: boolean; text: string },
-	isUrl: (text: string) => boolean,
 ): void {
 	pasteInfo.trigger = false;
 	pasteInfo.text = '';
@@ -345,22 +338,13 @@ export async function handleEmbedCodeBlock(
  * Embeds the selected URL or clipboard content if it's a URL.
  *
  * @param editor The editor instance
- * @param plugin The plugin instance for access to settings and methods
+ * @param settings Plugin settings
  */
 export async function handleEmbedLinkCommand(
 	editor: Editor,
-	getText: (editor: Editor) => Promise<any>,
-	checkUrlValid: (selected: any) => boolean,
-	embedUrl: (
-		editor: Editor,
-		selected: any,
-		selectedParsers: string[],
-		settings: any,
-		inPlace?: boolean,
-	) => Promise<void>,
 	settings: ObsidianLinkEmbedPluginSettings,
 ): Promise<void> {
-	let selected = await getText(editor);
+	const selected = await ExEditor.getText(editor, settings.debug);
 	if (!checkUrlValid(selected)) {
 		return;
 	}
@@ -377,23 +361,15 @@ export async function handleEmbedLinkCommand(
  * Create a handler for a specific parser command.
  *
  * @param parserName The name of the parser to use
+ * @param settings Plugin settings
  * @returns A command handler function
  */
 export function createParserCommandHandler(
 	parserName: string,
-	getText: (editor: Editor) => Promise<any>,
-	checkUrlValid: (selected: any) => boolean,
-	embedUrl: (
-		editor: Editor,
-		selected: any,
-		selectedParsers: string[],
-		settings: any,
-		inPlace?: boolean,
-	) => Promise<void>,
 	settings: ObsidianLinkEmbedPluginSettings,
 ): (editor: Editor) => Promise<void> {
 	return async (editor: Editor) => {
-		let selected = await getText(editor);
+		const selected = await ExEditor.getText(editor, settings.debug);
 		if (!checkUrlValid(selected)) {
 			return;
 		}
@@ -405,4 +381,37 @@ export function createParserCommandHandler(
 			settings.inPlace,
 		);
 	};
+}
+
+/**
+ * Handler for the "create-markdown-link" command.
+ * Converts the selected URL or clipboard content to [title](url) format.
+ *
+ * @param editor The editor instance
+ * @param settings Plugin settings
+ * @param vault The vault instance
+ * @param parsers Optional array of parser names to use (defaults to primary and backup)
+ */
+export async function handleCreateMarkdownLinkCommand(
+	editor: Editor,
+	settings: ObsidianLinkEmbedPluginSettings,
+	vault: any,
+	parsers?: string[],
+): Promise<void> {
+	const selected = await ExEditor.getText(editor, settings.debug);
+	if (!checkUrlValid(selected)) {
+		return;
+	}
+	const url = selected.text;
+	const boundary = selected.boundary;
+	const selectedParsers = parsers || [settings.primary, settings.backup];
+	const mdLink = await convertUrlToMarkdownLink(
+		url,
+		selectedParsers,
+		settings,
+		vault,
+	);
+	if (mdLink) {
+		editor.replaceRange(mdLink, boundary.start, boundary.end);
+	}
 }

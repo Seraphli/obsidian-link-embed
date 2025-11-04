@@ -9,6 +9,7 @@ export interface ObsidianLinkEmbedPluginSettings {
 	popup: boolean;
 	rmDismiss: boolean;
 	autoEmbedWhenEmpty: boolean;
+	defaultPasteAction: 'embed' | 'markdown';
 	primary: string;
 	backup: string;
 	inPlace: boolean;
@@ -31,6 +32,7 @@ export const DEFAULT_SETTINGS: ObsidianLinkEmbedPluginSettings = {
 	popup: true,
 	rmDismiss: false,
 	autoEmbedWhenEmpty: false,
+	defaultPasteAction: 'embed',
 	primary: 'local',
 	backup: 'microlink',
 	inPlace: false,
@@ -98,6 +100,21 @@ export class ObsidianLinkEmbedSettingTab extends PluginSettingTab {
 					.onChange((value) => {
 						this.plugin.settings.autoEmbedWhenEmpty = value;
 						this.plugin.saveSettings();
+					});
+			});
+		new Setting(containerEl)
+			.setName('Default Paste Action')
+			.setDesc(
+				'Choose default action when pasting a URL into an empty line.',
+			)
+			.addDropdown((dropdown) => {
+				dropdown
+					.addOption('embed', 'Create Embed Block')
+					.addOption('markdown', 'Create Markdown Link')
+					.setValue(this.plugin.settings.defaultPasteAction)
+					.onChange(async (value: 'embed' | 'markdown') => {
+						this.plugin.settings.defaultPasteAction = value;
+						await this.plugin.saveSettings();
 					});
 			});
 		new Setting(containerEl)

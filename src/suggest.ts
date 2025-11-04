@@ -8,8 +8,7 @@ import {
 	TFile,
 } from 'obsidian';
 import type ObsidianLinkEmbedPlugin from 'main';
-import { createParser } from './parsers';
-import { embedUrl } from './embedUtils';
+import { embedUrl, convertUrlToMarkdownLink } from './embedUtils';
 
 interface IDateCompletion {
 	choice: string;
@@ -26,18 +25,20 @@ export default class EmbedSuggest extends EditorSuggest<IDateCompletion> {
 	}
 
 	getSuggestions(context: EditorSuggestContext): IDateCompletion[] {
-		// catch-all if there are no matches
+		const embedOption = { choice: 'Create Embed Block' };
+		const markdownOption = { choice: 'Create Markdown Link' };
+		const dismissOption = { choice: 'Dismiss' };
+
+		const isEmbedFirst =
+			this.plugin.settings.defaultPasteAction === 'embed';
+		const mainOptions = isEmbedFirst
+			? [embedOption, markdownOption]
+			: [markdownOption, embedOption];
+
 		if (this.plugin.settings.rmDismiss) {
-			return [
-				{ choice: 'Create Embed' },
-				{ choice: 'Create Markdown Link' },
-			];
+			return mainOptions;
 		}
-		return [
-			{ choice: 'Dismiss' },
-			{ choice: 'Create Embed' },
-			{ choice: 'Create Markdown Link' },
-		];
+		return [dismissOption, ...mainOptions];
 	}
 
 	renderSuggestion(suggestion: IDateCompletion, el: HTMLElement): void {
@@ -48,7 +49,7 @@ export default class EmbedSuggest extends EditorSuggest<IDateCompletion> {
 		suggestion: IDateCompletion,
 		event: KeyboardEvent | MouseEvent,
 	): void {
-		if (suggestion.choice == 'Create Embed') {
+		if (suggestion.choice == 'Create Embed Block') {
 			const cursor = this.editor.getCursor();
 			embedUrl(
 				this.editor,
@@ -68,13 +69,12 @@ export default class EmbedSuggest extends EditorSuggest<IDateCompletion> {
 				true,
 			);
 		} else if (suggestion.choice == 'Create Markdown Link') {
-			// Convert URL to [title](link) format
 			this.convertToMarkdownLink();
 		}
 		this.close();
 	}
 
-	private async convertToMarkdownLink(): Promise<void> {
+	async convertToMarkdownLink(): Promise<void> {
 		const url = this.plugin.pasteInfo.text;
 		const cursor = this.editor.getCursor();
 		const boundary = {
@@ -84,56 +84,14 @@ export default class EmbedSuggest extends EditorSuggest<IDateCompletion> {
 			},
 			end: cursor,
 		};
-
-		try {
-			// Create parser instance on demand
-			const parser = createParser(
-				this.plugin.settings.primary,
-				this.plugin.settings,
-				this.plugin.app.vault,
-			);
-			parser.debug = this.plugin.settings.debug;
-
-			// Try to fetch only the title for the link
-			const data = await parser.parse(url);
-
-			if (data.title) {
-				// Replace the URL with [title](url) format
-				const mdLink = `[${data.title}](${url})`;
-				this.editor.replaceRange(mdLink, boundary.start, boundary.end);
-			}
-			// If title is empty, keep the URL as is (do nothing)
-		} catch (error) {
-			// If primary parser fails, try the backup parser
-			try {
-				const backupParser = createParser(
-					this.plugin.settings.backup,
-					this.plugin.settings,
-					this.plugin.app.vault,
-				);
-				backupParser.debug = this.plugin.settings.debug;
-
-				const backupData = await backupParser.parse(url);
-				if (backupData.title) {
-					// Replace the URL with [title](url) format
-					const mdLink = `[${backupData.title}](${url})`;
-					this.editor.replaceRange(
-						mdLink,
-						boundary.start,
-						boundary.end,
-					);
-				}
-				// If title is empty, keep the URL as is (do nothing)
-			} catch (backupError) {
-				// Both parsers failed, keep the URL as is (do nothing)
-				if (this.plugin.settings.debug) {
-					console.log(
-						'Link Embed: Failed to fetch title using both parsers',
-						error,
-						backupError,
-					);
-				}
-			}
+		const mdLink = await convertUrlToMarkdownLink(
+			url,
+			[this.plugin.settings.primary, this.plugin.settings.backup],
+			this.plugin.settings,
+			this.plugin.app.vault,
+		);
+		if (mdLink) {
+			this.editor.replaceRange(mdLink, boundary.start, boundary.end);
 		}
 	}
 
@@ -151,25 +109,32 @@ export default class EmbedSuggest extends EditorSuggest<IDateCompletion> {
 		if (this.plugin.settings.autoEmbedWhenEmpty) {
 			const currentCursor = this.editor.getCursor();
 			if (currentCursor.ch - this.plugin.pasteInfo.text.length == 0) {
-				embedUrl(
-					this.editor,
-					{
-						can: true,
-						text: this.plugin.pasteInfo.text,
-						boundary: {
-							start: {
-								line: currentCursor.line,
-								ch:
-									currentCursor.ch -
-									this.plugin.pasteInfo.text.length,
+				if (this.plugin.settings.defaultPasteAction === 'markdown') {
+					this.convertToMarkdownLink();
+				} else {
+					embedUrl(
+						this.editor,
+						{
+							can: true,
+							text: this.plugin.pasteInfo.text,
+							boundary: {
+								start: {
+									line: currentCursor.line,
+									ch:
+										currentCursor.ch -
+										this.plugin.pasteInfo.text.length,
+								},
+								end: currentCursor,
 							},
-							end: currentCursor,
 						},
-					},
-					[this.plugin.settings.primary, this.plugin.settings.backup],
-					this.plugin.settings,
-					true,
-				);
+						[
+							this.plugin.settings.primary,
+							this.plugin.settings.backup,
+						],
+						this.plugin.settings,
+						true,
+					);
+				}
 				return null;
 			}
 		}

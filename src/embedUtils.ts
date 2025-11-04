@@ -203,41 +203,98 @@ export async function tryParsers(
 	settings: any,
 	locationInfo: string,
 ): Promise<{ data: any; selectedParser: string }> {
-	let idx = 0;
-	while (idx < selectedParsers.length) {
-		const selectedParser = selectedParsers[idx];
-		if (settings.debug) {
-			console.log('[Link Embed] Parser:', selectedParser);
-		}
-
-		try {
-			// Create parser instance on demand
-			const parser = createParser(selectedParser, settings, null);
-			parser.debug = settings.debug;
-			parser.location = locationInfo; // Pass location for error reporting
-
-			const data = await parser.parse(url);
+	let notice: Notice | null = null;
+	try {
+		let idx = 0;
+		while (idx < selectedParsers.length) {
+			const selectedParser = selectedParsers[idx];
 			if (settings.debug) {
-				console.log('[Link Embed] Meta data:', data);
+				console.log('[Link Embed] Parser:', selectedParser);
 			}
 
-			// Return successful result
-			return { data, selectedParser };
-		} catch (error) {
-			showNotice(error instanceof Error ? error : String(error), {
-				debug: settings.debug,
-				context: 'Link Embed - Parser',
-				type: 'error',
-			});
-			idx += 1;
-			if (idx === selectedParsers.length) {
-				// If this was the last parser, propagate the error
-				throw error;
+			if (notice) {
+				notice.hide();
+			}
+			notice = new Notice(
+				`Fetching link metadata using ${selectedParser}...`,
+				0,
+			);
+
+			try {
+				const parser = createParser(selectedParser, settings, null);
+				parser.debug = settings.debug;
+				parser.location = locationInfo;
+
+				const data = await parser.parse(url);
+				if (settings.debug) {
+					console.log('[Link Embed] Meta data:', data);
+				}
+
+				notice.hide();
+				return { data, selectedParser };
+			} catch (error) {
+				showNotice(error instanceof Error ? error : String(error), {
+					debug: settings.debug,
+					context: 'Link Embed - Parser',
+					type: 'error',
+				});
+				idx += 1;
+				if (idx === selectedParsers.length) {
+					if (notice) {
+						notice.hide();
+					}
+					throw error;
+				}
 			}
 		}
+		if (notice) {
+			notice.hide();
+		}
+		throw new Error('All parsers failed');
+	} catch (error) {
+		if (notice) {
+			notice.hide();
+		}
+		throw error;
 	}
-	// This shouldn't be reached but TypeScript needs it
-	throw new Error('All parsers failed');
+}
+
+/**
+ * Converts a URL to Markdown link format [title](url)
+ * Tries multiple parsers to fetch the title
+ *
+ * @param url The URL to convert
+ * @param selectedParsers Array of parser types to try
+ * @param settings Plugin settings
+ * @param vault The vault instance
+ * @returns The markdown link string or null if failed
+ */
+export async function convertUrlToMarkdownLink(
+	url: string,
+	selectedParsers: string[],
+	settings: any,
+	vault: any,
+): Promise<string | null> {
+	try {
+		const { data } = await tryParsers(
+			url,
+			selectedParsers,
+			settings,
+			'create-markdown-link',
+		);
+		if (data.title) {
+			return `[${data.title}](${url})`;
+		}
+		return null;
+	} catch (error) {
+		if (settings.debug) {
+			console.log(
+				'Link Embed: Failed to fetch title for markdown link',
+				error,
+			);
+		}
+		return null;
+	}
 }
 
 /**

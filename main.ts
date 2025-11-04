@@ -1,20 +1,17 @@
-import { Editor, Plugin, MarkdownView } from 'obsidian';
-import { ExEditor } from './src/exEditor';
+import { Editor, Plugin } from 'obsidian';
 import {
 	ObsidianLinkEmbedSettingTab,
 	DEFAULT_SETTINGS,
 	ObsidianLinkEmbedPluginSettings,
 } from './src/settings';
 import { LocalParser } from './src/parsers/LocalParser';
-import { checkUrlValid } from './src/urlUtils';
-import { isUrl } from './src/urlUtils';
-import { embedUrl } from './src/embedUtils';
 import { parseOptions } from './src/parsers';
 import {
 	handleEditorPaste,
 	handleEmbedCodeBlock,
 	handleEmbedLinkCommand,
 	createParserCommandHandler,
+	handleCreateMarkdownLinkCommand,
 } from './src/eventHandlers';
 import EmbedSuggest from './src/suggest';
 
@@ -48,22 +45,9 @@ export default class ObsidianLinkEmbedPlugin extends Plugin {
 
 		// Register event handler for clipboard paste
 		this.registerEvent(
-			this.app.workspace.on(
-				'editor-paste',
-				(
-					evt: ClipboardEvent,
-					editor: Editor,
-					markdownView: MarkdownView,
-				) => {
-					handleEditorPaste(
-						evt,
-						editor,
-						markdownView,
-						this.pasteInfo,
-						isUrl,
-					);
-				},
-			),
+			this.app.workspace.on('editor-paste', (evt: ClipboardEvent) => {
+				handleEditorPaste(evt, this.pasteInfo);
+			}),
 		);
 
 		// Register suggestion handler
@@ -72,14 +56,21 @@ export default class ObsidianLinkEmbedPlugin extends Plugin {
 		// Register the main embed command
 		this.addCommand({
 			id: 'embed-link',
-			name: 'Embed link',
+			name: 'Create Embed Block',
 			editorCallback: async (editor: Editor) => {
-				await handleEmbedLinkCommand(
+				await handleEmbedLinkCommand(editor, this.settings);
+			},
+		});
+
+		// Register the create markdown link command
+		this.addCommand({
+			id: 'create-markdown-link',
+			name: 'Create Markdown Link',
+			editorCallback: async (editor: Editor) => {
+				await handleCreateMarkdownLinkCommand(
 					editor,
-					ExEditor.getText.bind(ExEditor),
-					checkUrlValid,
-					embedUrl,
 					this.settings,
+					this.app.vault,
 				);
 			},
 		});
@@ -88,14 +79,21 @@ export default class ObsidianLinkEmbedPlugin extends Plugin {
 		Object.keys(parseOptions).forEach((name) => {
 			this.addCommand({
 				id: `embed-link-${name}`,
-				name: `Embed link with ${parseOptions[name]}`,
-				editorCallback: createParserCommandHandler(
-					name,
-					ExEditor.getText.bind(ExEditor),
-					checkUrlValid,
-					embedUrl,
-					this.settings,
-				),
+				name: `Create Embed Block with ${parseOptions[name]}`,
+				editorCallback: createParserCommandHandler(name, this.settings),
+			});
+
+			this.addCommand({
+				id: `create-markdown-link-${name}`,
+				name: `Create Markdown Link with ${parseOptions[name]}`,
+				editorCallback: async (editor: Editor) => {
+					await handleCreateMarkdownLinkCommand(
+						editor,
+						this.settings,
+						this.app.vault,
+						[name],
+					);
+				},
 			});
 		});
 
