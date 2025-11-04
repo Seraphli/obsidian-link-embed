@@ -1,6 +1,6 @@
 {
 	"name": "obsidian-link-embed",
-	"version": "2.9.2",
+	"version": "2.9.3",
 	"description": "This plugin auto-fetches page metadata to embed Notion-style link preview cards.",
 	"main": "main.js",
 	"scripts": {
@@ -10,9 +10,7 @@
 		"lint:fix": "eslint --fix \"src/**/*.{ts,js}\" \"*.{ts,js}\"",
 		"build": "npm run format && tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
 		"version": "node version-bump.mjs && git add manifest.json versions.json",
-		"copyBuild": "make-dir build && rimraf build/main.js build/manifest.json build/styles.css && cpy main.js manifest.json styles.css build/",
-		"prepublish": "npm run build && npm run copyBuild",
-		"publish": "npm run build && npm run version && npm run copyBuild",
+		"publish": "npm run build && npm run version",
 		"prepare": "husky"
 	},
 	"keywords": [],

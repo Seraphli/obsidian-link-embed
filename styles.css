@@ -21,8 +21,9 @@
 }
 .w {
 	line-height: 1.4;
-	font-family: -apple-system, system-ui, BlinkMacSystemFont, 'Segoe UI',
-		Roboto, 'Helvetica Neue', Arial, sans-serif;
+	font-family:
+		-apple-system, system-ui, BlinkMacSystemFont, 'Segoe UI', Roboto,
+		'Helvetica Neue', Arial, sans-serif;
 	font-weight: 400;
 	font-size: 15px;
 	color: inherit;
@@ -213,8 +214,9 @@
 	}
 }
 ._ffsa {
-	font-family: -apple-system, system-ui, BlinkMacSystemFont, 'Segoe UI',
-		Roboto, 'Helvetica Neue', Arial, sans-serif;
+	font-family:
+		-apple-system, system-ui, BlinkMacSystemFont, 'Segoe UI', Roboto,
+		'Helvetica Neue', Arial, sans-serif;
 }
 ._fwn {
 	font-weight: 400;
@@ -347,7 +349,8 @@
 
 /* Button styling */
 .refresh-button,
-.copy-button {
+.copy-button,
+.delete-button {
 	cursor: pointer;
 }
 
@@ -358,6 +361,7 @@
 
 /* Full opacity when hovering over the buttons */
 .refresh-button:hover,
-.copy-button:hover {
+.copy-button:hover,
+.delete-button:hover {
 	opacity: 1 !important;
 }

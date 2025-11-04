@@ -485,6 +485,85 @@ export function addCopyButtonHandler(
 }
 
 /**
+ * Add a click handler for the delete button that removes the entire embed block from the file.
+ *
+ * @param element The HTML element containing the embed
+ * @param embedInfo Embed information (not used but kept for consistency)
+ * @param ctx Markdown post processor context
+ * @param vault The vault instance (needed to modify file content)
+ * @param settings Plugin settings
+ */
+export function addDeleteButtonHandler(
+	element: HTMLElement,
+	embedInfo: EmbedInfo,
+	ctx?: MarkdownPostProcessorContext,
+	vault?: any,
+	settings?: ObsidianLinkEmbedPluginSettings,
+): void {
+	const deleteButton = element.querySelector('.delete-button');
+	if (deleteButton) {
+		deleteButton.addEventListener('click', async () => {
+			try {
+				// Get the current file
+				const file = vault.getAbstractFileByPath(ctx.sourcePath);
+				if (!file) {
+					showNotice(`File not found: ${ctx.sourcePath}`, {
+						debug: settings.debug,
+						context: 'Link Embed - Delete',
+						type: 'error',
+					});
+					return;
+				}
+
+				// Get section info to locate the code block
+				const sectionInfo = ctx.getSectionInfo(element);
+				if (!sectionInfo) {
+					showNotice('Could not get section info', {
+						debug: settings.debug,
+						context: 'Link Embed - Delete',
+						type: 'error',
+					});
+					return;
+				}
+
+				// Get file content and remove the embed block
+				const content = await vault.read(file);
+				const lines = content.split('\n');
+				const startLine = sectionInfo.lineStart;
+				const endLine = sectionInfo.lineEnd + 1;
+
+				// Remove the embed block lines
+				const newLines = [
+					...lines.slice(0, startLine),
+					...lines.slice(endLine),
+				];
+				const newContent = newLines.join('\n');
+
+				// Write the modified content back to the file
+				await vault.modify(file, newContent);
+
+				showNotice('Embed block deleted', {
+					debug: settings?.debug || false,
+					context: 'Link Embed - Delete',
+					type: 'success',
+				});
+			} catch (error) {
+				showNotice(
+					error instanceof Error
+						? error
+						: `Error deleting embed block: ${String(error)}`,
+					{
+						debug: settings?.debug || false,
+						context: 'Link Embed - Delete',
+						type: 'error',
+					},
+				);
+			}
+		});
+	}
+}
+
+/**
  * Embed a URL into the editor.
  *
  * @param editor The editor instance

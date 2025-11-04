@@ -1,6 +1,7 @@
 import esbuild from "esbuild";
 import process from "process";
-import builtins from 'builtin-modules'
+import builtins from 'builtin-modules';
+import { copyFileSync, mkdirSync } from 'fs';
 
 const banner =
 `/*
@@ -47,11 +48,19 @@ const buildOptions = {
 	logLevel: "info",
 	sourcemap: prod ? false : 'inline',
 	treeShaking: true,
-	outfile: 'main.js',
+	outfile: 'build/main.js',
 };
 
 if (prod) {
-	esbuild.build(buildOptions).catch(() => process.exit(1));
+	// Create build directory if it doesn't exist
+	mkdirSync('build', { recursive: true });
+
+	esbuild.build(buildOptions).then(() => {
+		// Copy additional files to build directory
+		copyFileSync('manifest.json', 'build/manifest.json');
+		copyFileSync('styles.css', 'build/styles.css');
+		console.log('✓ Build complete - files copied to build/');
+	}).catch(() => process.exit(1));
 } else {
 	esbuild.context(buildOptions).then(ctx => ctx.watch()).catch(() => process.exit(1));
 }

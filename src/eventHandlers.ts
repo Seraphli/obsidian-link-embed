@@ -9,6 +9,7 @@ import {
 	renderEmbed,
 	addRefreshButtonHandler,
 	addCopyButtonHandler,
+	addDeleteButtonHandler,
 } from './embedUtils';
 import { showNotice } from './errorUtils';
 import { getImageDimensions } from './parsers';
@@ -277,6 +278,7 @@ export async function handleEmbedCodeBlock(
 	// Add handlers to the initial render
 	addRefreshButtonHandler(newEl, info, ctx, settings, vault);
 	addCopyButtonHandler(newEl, info, ctx, vault, settings);
+	addDeleteButtonHandler(newEl, info, ctx, vault, settings);
 
 	// If we have any promises, wait for all to complete then do final render
 	if (promises.length > 0) {
@@ -300,6 +302,13 @@ export async function handleEmbedCodeBlock(
 					vault,
 				);
 				addCopyButtonHandler(
+					finalEl,
+					originalInfo,
+					ctx,
+					vault,
+					settings,
+				);
+				addDeleteButtonHandler(
 					finalEl,
 					originalInfo,
 					ctx,
