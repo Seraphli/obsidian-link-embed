@@ -8,8 +8,8 @@ import { Selected } from './exEditor';
  * @returns Whether the text is a valid URL.
  */
 export function isUrl(text: string): boolean {
-	const urlRegex = new RegExp(REGEX.URL, 'g');
-	return urlRegex.test(text);
+    const urlRegex = new RegExp(REGEX.URL, 'g');
+    return urlRegex.test(text);
 }
 
 /**
@@ -18,9 +18,9 @@ export function isUrl(text: string): boolean {
  * @returns Whether the selection contains a valid URL.
  */
 export function checkUrlValid(selected: Selected): boolean {
-	if (!(selected.text.length > 0 && isUrl(selected.text))) {
-		new Notice('Need a link to convert to embed.');
-		return false;
-	}
-	return true;
+    if (!(selected.text.length > 0 && isUrl(selected.text))) {
+        new Notice('Need a link to convert to embed.');
+        return false;
+    }
+    return true;
 }

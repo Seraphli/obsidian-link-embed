@@ -1,10 +1,10 @@
 {
-	"id": "obsidian-link-embed",
-	"name": "Link Embed",
-	"version": "2.10.0",
-	"minAppVersion": "0.12.0",
-	"description": "This plugin auto-fetches page metadata to embed Notion-style link preview cards.",
-	"author": "SErAphLi",
-	"authorUrl": "https://github.com/Seraphli",
-	"isDesktopOnly": false
+    "id": "obsidian-link-embed",
+    "name": "Link Embed",
+    "version": "2.10.0",
+    "minAppVersion": "0.12.0",
+    "description": "This plugin auto-fetches page metadata to embed Notion-style link preview cards.",
+    "author": "SErAphLi",
+    "authorUrl": "https://github.com/Seraphli",
+    "isDesktopOnly": false
 }
