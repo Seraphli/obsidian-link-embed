@@ -664,7 +664,9 @@ export async function embedUrl(
         editor.setCursor({ line: cursor.line, ch: lineText.length });
     }
 
-    const startCursor = editor.getCursor();
+    // Generate a unique ID for this placeholder to track it reliably
+    const placeholderId = `embed-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
+
     const dummyEmbed =
         Mustache.render(MarkdownTemplate, {
             title: 'Fetching',
@@ -672,10 +674,10 @@ export async function embedUrl(
             description: `Fetching ${url}`,
             url: url,
             favicon: '',
+            metadata: `placeholder-id: "${placeholderId}"`,
         }) + '\n';
 
     editor.replaceSelection(dummyEmbed);
-    const endCursor = editor.getCursor();
 
     // if we can fetch result, we can replace the embed with true content
     try {
@@ -694,16 +696,55 @@ export async function embedUrl(
             await new Promise((f) => setTimeout(f, settings.delay));
         }
 
-        // before replacing, check whether dummy is deleted or modified
-        const dummy = editor.getRange(startCursor, endCursor);
-        if (dummy == dummyEmbed) {
-            editor.replaceRange(embed, startCursor, endCursor);
-            console.log(`[Link Embed] Parser ${selectedParser} done`);
-        } else {
+        // Search for the placeholder in the entire document instead of using fixed positions
+        // This handles cases where other embeds were inserted/modified before this one
+        const fullText = editor.getValue();
+        const placeholderIndex = fullText.indexOf(placeholderId);
+
+        if (placeholderIndex === -1) {
             new Notice(
                 `Dummy preview has been deleted or modified. Replacing is cancelled.`,
             );
+            return;
         }
+
+        // Find the start of the embed block (search backwards for ```embed)
+        let embedStart = fullText.lastIndexOf('```embed', placeholderIndex);
+        if (embedStart === -1) {
+            new Notice(
+                `Dummy preview has been deleted or modified. Replacing is cancelled.`,
+            );
+            return;
+        }
+
+        // Find the end of the embed block (search forwards for ```)
+        let embedEnd = fullText.indexOf('```', placeholderIndex);
+        if (embedEnd === -1) {
+            new Notice(
+                `Dummy preview has been deleted or modified. Replacing is cancelled.`,
+            );
+            return;
+        }
+        embedEnd += 3; // Include the closing ```
+
+        // Extract the dummy embed to verify it's intact
+        const dummy = fullText.substring(embedStart, embedEnd);
+        const hasUrl = dummy.includes(`url: "${url}"`);
+
+        if (!hasUrl) {
+            new Notice(
+                `Dummy preview has been deleted or modified. Replacing is cancelled.`,
+            );
+            return;
+        }
+
+        // Convert character positions to line/ch positions
+        const startPos = editor.offsetToPos(embedStart);
+        const endPos = editor.offsetToPos(embedEnd);
+
+        // Replace the dummy with the actual embed
+        editor.replaceRange(embed.trimEnd(), startPos, endPos);
+        console.log(`[Link Embed] Parser ${selectedParser} done`);
     } catch (error) {
         console.log('[Link Embed] Error:', error);
         showNotice(error instanceof Error ? error : String(error), {
