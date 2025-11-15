@@ -60,6 +60,21 @@ By default, the embedded preview will be inserted into the next line, but this c
 - **Metadata**: A feature that allows you to include custom information with your embeds. This can be used to add notes, tags, or any additional data you want to associate with the embedded link.
 - **Metadata Template**: Customize metadata with variables like `{{parser}}` for parser type, `{{date}}` for date. For custom date format use `{{#formatDate}}YYYY-MM-DD HH:mm:ss{{/formatDate}}`.
 
+#### Markdown Link Favicon Settings
+
+Similar to the [Link Favicons](https://github.com/joethei/obsidian-link-favicon) plugin, this plugin can display favicons next to regular markdown links:
+
+- **Enable Markdown Link Favicon**: When enabled, favicons will be displayed next to markdown links in both reading mode and live preview mode.
+- **Favicon Position**: Choose whether to display the favicon before or after the link text.
+- **Show on Aliased Links**: Control whether to show favicons on links with aliases (e.g., `[Obsidian](https://obsidian.md/)`).
+- **Show on Plain Links**: Control whether to show favicons on plain links without aliases (e.g., `https://obsidian.md/`).
+
+To disable favicon on a specific link, add `|nofavicon` to the link alias:
+
+```md
+[Display text|nofavicon](https://example.org)
+```
+
 ## Supported Parsers
 
 The plugin supports the following parsers:

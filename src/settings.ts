@@ -4,6 +4,7 @@ import { parseOptions } from './parsers';
 import { REGEX, MarkdownTemplate } from './constants';
 import Mustache from 'mustache';
 import he from 'he';
+import { refreshAllFaviconDecorations } from './decoration/linkFaviconDecoration';
 
 export interface ObsidianLinkEmbedPluginSettings {
 	popup: boolean;
@@ -26,6 +27,13 @@ export interface ObsidianLinkEmbedPluginSettings {
 	useCache: boolean;
 	enableFavicon: boolean;
 	maxConcurrentLocalParsers: number;
+	enableMarkdownLinkFavicon: boolean;
+	markdownLinkFaviconPosition: 'before' | 'after';
+	showMarkdownLinkFaviconOnAliased: boolean;
+	showMarkdownLinkFaviconOnPlain: boolean;
+	enableMarkdownLinkFaviconInReading: boolean;
+	enableMarkdownLinkFaviconInSource: boolean;
+	enableMarkdownLinkFaviconInLivePreview: boolean;
 }
 
 export const DEFAULT_SETTINGS: ObsidianLinkEmbedPluginSettings = {
@@ -50,6 +58,13 @@ export const DEFAULT_SETTINGS: ObsidianLinkEmbedPluginSettings = {
 	useCache: true,
 	enableFavicon: false,
 	maxConcurrentLocalParsers: 1,
+	enableMarkdownLinkFavicon: false,
+	markdownLinkFaviconPosition: 'before',
+	showMarkdownLinkFaviconOnAliased: true,
+	showMarkdownLinkFaviconOnPlain: true,
+	enableMarkdownLinkFaviconInReading: true,
+	enableMarkdownLinkFaviconInSource: true,
+	enableMarkdownLinkFaviconInLivePreview: true,
 };
 
 export class ObsidianLinkEmbedSettingTab extends PluginSettingTab {
@@ -339,6 +354,126 @@ export class ObsidianLinkEmbedSettingTab extends PluginSettingTab {
 					.onChange((value) => {
 						this.plugin.settings.imageFolderPath = value;
 						this.plugin.saveSettings();
+					});
+			});
+
+		containerEl.createEl('h3', { text: 'Markdown Link Favicon' });
+
+		new Setting(containerEl)
+			.setName('Enable Markdown Link Favicon')
+			.setDesc(
+				'When enabled, favicons will be displayed next to markdown links in reading mode and live preview mode.',
+			)
+			.addToggle((value) => {
+				value
+					.setValue(this.plugin.settings.enableMarkdownLinkFavicon)
+					.onChange((value) => {
+						this.plugin.settings.enableMarkdownLinkFavicon = value;
+						this.plugin.saveSettings();
+						refreshAllFaviconDecorations();
+					});
+			});
+
+		new Setting(containerEl)
+			.setName('Markdown Link Favicon Position')
+			.setDesc(
+				'Choose where to display the favicon relative to the link text.',
+			)
+			.addDropdown((dropdown) => {
+				dropdown
+					.addOption('before', 'Before Link Text')
+					.addOption('after', 'After Link Text')
+					.setValue(this.plugin.settings.markdownLinkFaviconPosition)
+					.onChange(async (value: 'before' | 'after') => {
+						this.plugin.settings.markdownLinkFaviconPosition =
+							value;
+						await this.plugin.saveSettings();
+						refreshAllFaviconDecorations();
+					});
+			});
+
+		new Setting(containerEl)
+			.setName('Show Favicon on Aliased Links')
+			.setDesc(
+				'Show favicon when link has an alias (e.g., [Obsidian](https://obsidian.md/))',
+			)
+			.addToggle((value) => {
+				value
+					.setValue(
+						this.plugin.settings.showMarkdownLinkFaviconOnAliased,
+					)
+					.onChange((value) => {
+						this.plugin.settings.showMarkdownLinkFaviconOnAliased =
+							value;
+						this.plugin.saveSettings();
+						refreshAllFaviconDecorations();
+					});
+			});
+
+		new Setting(containerEl)
+			.setName('Show Favicon on Plain Links')
+			.setDesc(
+				'Show favicon when link has no alias (e.g., https://obsidian.md/)',
+			)
+			.addToggle((value) => {
+				value
+					.setValue(
+						this.plugin.settings.showMarkdownLinkFaviconOnPlain,
+					)
+					.onChange((value) => {
+						this.plugin.settings.showMarkdownLinkFaviconOnPlain =
+							value;
+						this.plugin.saveSettings();
+						refreshAllFaviconDecorations();
+					});
+			});
+
+		new Setting(containerEl)
+			.setName('Show in Reading Mode')
+			.setDesc('Display favicons in reading mode')
+			.addToggle((value) => {
+				value
+					.setValue(
+						this.plugin.settings.enableMarkdownLinkFaviconInReading,
+					)
+					.onChange((value) => {
+						this.plugin.settings.enableMarkdownLinkFaviconInReading =
+							value;
+						this.plugin.saveSettings();
+						refreshAllFaviconDecorations();
+					});
+			});
+
+		new Setting(containerEl)
+			.setName('Show in Source Mode')
+			.setDesc('Display favicons in source mode')
+			.addToggle((value) => {
+				value
+					.setValue(
+						this.plugin.settings.enableMarkdownLinkFaviconInSource,
+					)
+					.onChange((value) => {
+						this.plugin.settings.enableMarkdownLinkFaviconInSource =
+							value;
+						this.plugin.saveSettings();
+						refreshAllFaviconDecorations();
+					});
+			});
+
+		new Setting(containerEl)
+			.setName('Show in Live Preview')
+			.setDesc('Display favicons in live preview mode')
+			.addToggle((value) => {
+				value
+					.setValue(
+						this.plugin.settings
+							.enableMarkdownLinkFaviconInLivePreview,
+					)
+					.onChange((value) => {
+						this.plugin.settings.enableMarkdownLinkFaviconInLivePreview =
+							value;
+						this.plugin.saveSettings();
+						refreshAllFaviconDecorations();
 					});
 			});
 

@@ -1,6 +1,6 @@
 {
 	"name": "obsidian-link-embed",
-	"version": "2.9.4",
+	"version": "2.10.0",
 	"description": "This plugin auto-fetches page metadata to embed Notion-style link preview cards.",
 	"main": "main.js",
 	"scripts": {
@@ -17,6 +17,7 @@
 	"author": "SErAphLi",
 	"license": "MIT",
 	"devDependencies": {
+		"@codemirror/language": "^6.11.3",
 		"@codemirror/state": "6.5.0",
 		"@codemirror/view": "6.38.1",
 		"@types/he": "^1.2.3",

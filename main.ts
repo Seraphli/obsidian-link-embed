@@ -14,6 +14,8 @@ import {
 	handleCreateMarkdownLinkCommand,
 } from './src/eventHandlers';
 import EmbedSuggest from './src/suggest';
+import { LinkFaviconHandler } from './src/linkFaviconHandler';
+import { linkFaviconDecorationPlugin } from './src/decoration/linkFaviconDecoration';
 
 interface PasteInfo {
 	trigger: boolean;
@@ -25,6 +27,7 @@ export default class ObsidianLinkEmbedPlugin extends Plugin {
 	pasteInfo: PasteInfo;
 	cache: Map<string, any>; // A unified cache for both image dimensions and favicons
 	imageLoadAttempts: Map<string, number>; // Track image loading attempts
+	linkFaviconHandler: LinkFaviconHandler; // Handler for markdown link favicons
 
 	async onload() {
 		await this.loadSettings();
@@ -42,6 +45,12 @@ export default class ObsidianLinkEmbedPlugin extends Plugin {
 
 		// Initialize the LocalParser's limiter with the setting
 		LocalParser.initLimiter(this.settings.maxConcurrentLocalParsers);
+
+		// Initialize the link favicon handler
+		this.linkFaviconHandler = new LinkFaviconHandler(
+			this.settings,
+			this.cache,
+		);
 
 		// Register event handler for clipboard paste
 		this.registerEvent(
@@ -112,6 +121,14 @@ export default class ObsidianLinkEmbedPlugin extends Plugin {
 				);
 			},
 		);
+
+		// Register markdown post processor for adding favicons to links in reading mode
+		this.registerMarkdownPostProcessor(async (element, context) => {
+			await this.linkFaviconHandler.processLinks(element, context);
+		});
+
+		// Register CodeMirror extension for adding favicons to links in live preview mode
+		this.registerEditorExtension(linkFaviconDecorationPlugin(this));
 
 		// Add the settings tab
 		this.addSettingTab(new ObsidianLinkEmbedSettingTab(this.app, this));

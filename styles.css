@@ -365,3 +365,14 @@
 .delete-button:hover {
 	opacity: 1 !important;
 }
+
+/* Markdown link favicon styling */
+.link-favicon {
+	vertical-align: bottom;
+	margin-bottom: 0.3em;
+	margin-left: 0.1em;
+	margin-right: 0.1em;
+	cursor: pointer !important;
+	image-rendering: -webkit-optimize-contrast;
+	max-height: 1em;
+}
